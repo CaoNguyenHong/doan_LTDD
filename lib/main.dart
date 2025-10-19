@@ -1,21 +1,33 @@
 import 'package:flutter/material.dart';
+import 'package:firebase_core/firebase_core.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:provider/provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:spend_sage/providers/expense_provider.dart';
 import 'package:spend_sage/providers/settings_provider.dart';
-import 'package:spend_sage/screens/main_screen.dart';
+import 'package:spend_sage/auth/auth_gate.dart';
 import 'package:spend_sage/service/api_service.dart';
 import 'package:spend_sage/service/database_service.dart';
+import 'firebase_options.dart';
+
+Future<void> _initFirebase() async {
+  await Firebase.initializeApp(options: DefaultFirebaseOptions.currentPlatform);
+  // TODO(CURSOR): Enable persistence for web if needed
+  // FirebaseFirestore.instance.settings = const Settings(persistenceEnabled: true);
+}
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
+  
+  // Initialize Firebase
+  await _initFirebase();
 
   // Load environment variables
   await dotenv.load(fileName: ".env");
 
   // Initialize services
   final prefs = await SharedPreferences.getInstance();
+  // TODO(CURSOR): Keep Hive service for migration, remove when fully migrated
   final databaseService = DatabaseService();
   await databaseService.init();
 
@@ -47,10 +59,7 @@ class MyApp extends StatelessWidget {
     return MultiProvider(
       providers: [
         ChangeNotifierProvider(
-          create: (context) => ExpenseProvider(
-            databaseService: databaseService,
-            aiService: aiService,
-          ),
+          create: (context) => ExpenseProvider.firestore(), // Use Firestore
         ),
         ChangeNotifierProvider(
           create: (context) => SettingsProvider(prefs),
@@ -61,21 +70,21 @@ class MyApp extends StatelessWidget {
           title: 'SpendSage',
           theme: ThemeData(
             colorScheme: ColorScheme.fromSeed(
-              seedColor: Colors.deepPurple,
+              seedColor: Colors.teal, // Updated to match Firebase theme
               brightness: Brightness.light,
             ),
             useMaterial3: true,
           ),
           darkTheme: ThemeData(
             colorScheme: ColorScheme.fromSeed(
-              seedColor: Colors.deepPurple,
+              seedColor: Colors.teal, // Updated to match Firebase theme
               brightness: Brightness.dark,
             ),
             useMaterial3: true,
           ),
           themeMode: settings.isDarkMode ? ThemeMode.dark : ThemeMode.light,
           debugShowCheckedModeBanner: false,
-          home: const MainScreen(),
+          home: const AuthGate(), // Use AuthGate instead of MainScreen
         ),
       ),
     );

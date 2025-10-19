@@ -1,0 +1,51 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    
+    // Helper functions
+    function signedIn() {
+      return request.auth != null;
+    }
+    
+    function isOwner(userId) {
+      return signedIn() && request.auth.uid == userId;
+    }
+    
+    // User documents
+    match /users/{userId} {
+      allow read, write: if isOwner(userId);
+      
+      // User settings
+      match /settings/{document=**} {
+        allow read, write: if isOwner(userId);
+      }
+      
+      // User expenses
+      match /expenses/{expenseId} {
+        allow read: if isOwner(userId);
+        allow create: if isOwner(userId)
+          && request.resource.data.keys().hasAll([
+            'category', 'amount', 'description', 'dateTime', 
+            'createdAt', 'updatedAt', 'deleted'
+          ])
+          && request.resource.data.amount is number
+          && request.resource.data.amount >= 0
+          && request.resource.data.deleted is bool
+          && request.resource.data.category is string
+          && request.resource.data.description is string;
+        
+        allow update: if isOwner(userId)
+          && request.resource.data.amount is number
+          && request.resource.data.amount >= 0
+          && request.resource.data.deleted is bool;
+        
+        allow delete: if isOwner(userId);
+      }
+      
+      // Learned categories
+      match /learned/{word} {
+        allow read, write: if isOwner(userId);
+      }
+    }
+  }
+}

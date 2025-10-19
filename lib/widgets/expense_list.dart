@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:spend_sage/hive/expense.dart';
-import 'package:spend_sage/utilities/uitilities.dart';
+import 'package:spend_sage/utilities/utilities.dart';
 import '../providers/expense_provider.dart';
 
 class ExpenseList extends StatelessWidget {
@@ -66,7 +66,7 @@ class ExpenseList extends StatelessWidget {
     );
     String selectedCategory = expense.category;
 
-    Uitilities.showAnimatedDialog(
+                Utilities.showAnimatedDialog(
       context: context,
       title: 'Edit Expense',
       content: SingleChildScrollView(

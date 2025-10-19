@@ -1,11 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:speech_to_text/speech_to_text.dart' as stt;
-import 'package:spend_sage/utilities/uitilities.dart';
+import 'package:spend_sage/utilities/utilities.dart';
 import 'package:spend_sage/widgets/filter_selector.dart';
 import 'package:spend_sage/widgets/total_amount_display.dart';
 import '../providers/expense_provider.dart';
-import '../widgets/expense_chart.dart';
 import '../widgets/expense_list.dart';
 
 class HomeScreen extends StatefulWidget {
@@ -81,7 +80,7 @@ class _HomeScreenState extends State<HomeScreen> {
           ),
           floatingActionButton: FloatingActionButton.extended(
             onPressed: () {
-              Uitilities.showAnimatedDialog(
+              Utilities.showAnimatedDialog(
                   context: context,
                   title: 'Enter Expense',
                   content: _buildExpenseInput(expenseProvider),

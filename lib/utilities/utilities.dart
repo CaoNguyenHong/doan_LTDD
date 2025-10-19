@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 
-class Uitilities {
+class Utilities {
   // Re-usable animated dialog
   static Future<void> showAnimatedDialog({
     required BuildContext context,

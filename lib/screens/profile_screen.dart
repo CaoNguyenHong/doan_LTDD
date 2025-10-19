@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:currency_picker/currency_picker.dart';
 import '../providers/settings_provider.dart';
+import '../auth/auth_repo.dart';
 
 class ProfileScreen extends StatelessWidget {
   const ProfileScreen({super.key});
@@ -99,6 +100,12 @@ class ProfileScreen extends StatelessWidget {
                       title: const Text('Change Username'),
                       subtitle: Text(settings.userName),
                       onTap: () => _showUsernameDialog(context, settings),
+                    ),
+                    ListTile(
+                      title: const Text('Sign Out'),
+                      subtitle: Text('Sign out of your account'),
+                      leading: const Icon(Icons.logout),
+                      onTap: () => _showSignOutDialog(context),
                     ),
                   ],
                 ),
@@ -231,5 +238,42 @@ class ProfileScreen extends StatelessWidget {
         ],
       ),
     );
+  }
+
+  void _showSignOutDialog(BuildContext context) {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Sign Out'),
+        content: const Text('Are you sure you want to sign out?'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('Cancel'),
+          ),
+          TextButton(
+            onPressed: () async {
+              Navigator.pop(context);
+              await _signOut(context);
+            },
+            child: const Text('Sign Out'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Future<void> _signOut(BuildContext context) async {
+    try {
+      final authRepo = AuthRepo();
+      await authRepo.signOut();
+      // Navigation will be handled by AuthGate
+    } catch (e) {
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Sign out failed: $e')),
+        );
+      }
+    }
   }
 }

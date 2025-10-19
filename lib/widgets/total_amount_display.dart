@@ -30,29 +30,20 @@ class TotalAmountDisplay extends StatelessWidget {
 
         // Get alert status based on current filter mode
         AlertStatus status;
-        String message = '';
 
         switch (expenseProvider.filterMode) {
           case 'daily':
             status = settings.getAlertStatus(totalAmount, settings.dailyLimit);
-            message =
-                settings.getAlertMessage(totalAmount, settings.dailyLimit);
             break;
           case 'weekly':
             status = settings.getAlertStatus(totalAmount, settings.weeklyLimit);
-            message =
-                settings.getAlertMessage(totalAmount, settings.weeklyLimit);
             break;
           case 'monthly':
             status =
                 settings.getAlertStatus(totalAmount, settings.monthlyLimit);
-            message =
-                settings.getAlertMessage(totalAmount, settings.monthlyLimit);
             break;
           case 'yearly':
             status = settings.getAlertStatus(totalAmount, settings.yearlyLimit);
-            message =
-                settings.getAlertMessage(totalAmount, settings.yearlyLimit);
             break;
           default:
             status = AlertStatus.none;

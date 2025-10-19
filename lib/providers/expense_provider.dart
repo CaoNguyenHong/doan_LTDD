@@ -1,13 +1,15 @@
 import 'package:flutter/foundation.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:spend_sage/hive/expense.dart';
 import 'package:spend_sage/service/api_service.dart';
-import 'package:spend_sage/service/database_service.dart';
 import 'package:spend_sage/service/adaptive_expense_parser.dart';
+import 'package:spend_sage/data/firestore_data_source.dart';
+import 'package:spend_sage/data/firestore_expense_repo.dart';
 import 'package:uuid/uuid.dart';
 
 class ExpenseProvider with ChangeNotifier {
-  final DatabaseService _databaseService;
   final AIService _aiService;
+  late final ExpenseRepo _expenseRepo;
   List<Expense> _expenses = [];
   String _filterMode = 'daily';
   DateTime _selectedDate = DateTime.now();
@@ -16,11 +18,22 @@ class ExpenseProvider with ChangeNotifier {
   DateTime? _customStartDate;
   DateTime? _customEndDate;
 
+  /// Factory constructor for Firestore
+  ExpenseProvider.firestore() : _aiService = AIService(apiKey: '') {
+    final uid = FirebaseAuth.instance.currentUser!.uid;
+    _expenseRepo = FirestoreExpenseRepo(
+      uid: uid,
+      dataSource: FirestoreDataSource(),
+    );
+    _watchExpenses();
+  }
+
+  /// Legacy constructor for Hive (deprecated)
   ExpenseProvider({
-    required DatabaseService databaseService,
+    required dynamic databaseService, // TODO(CURSOR): Remove when fully migrated
     required AIService aiService,
-  })  : _databaseService = databaseService,
-        _aiService = aiService {
+  }) : _aiService = aiService {
+    // TODO(CURSOR): This is deprecated, use ExpenseProvider.firestore() instead
     _loadExpenses();
   }
 
@@ -34,8 +47,7 @@ class ExpenseProvider with ChangeNotifier {
   Future<void> deleteExpense(String id) async {
     _setLoading(true);
     try {
-      await _databaseService.deleteExpense(id);
-      await _loadExpenses();
+      await _expenseRepo.remove(id);
       _error = '';
     } catch (e) {
       _error = 'Failed to delete expense: $e';
@@ -58,8 +70,7 @@ class ExpenseProvider with ChangeNotifier {
         description: description,
         dateTime: DateTime.now(),
       );
-      await _databaseService.updateExpense(updatedExpense);
-      await _loadExpenses();
+      await _expenseRepo.update(updatedExpense);
       _error = '';
     } catch (e) {
       _error = 'Failed to update expense: $e';
@@ -84,10 +95,25 @@ class ExpenseProvider with ChangeNotifier {
     notifyListeners();
   }
 
+  /// Watch expenses from Firestore
+  void _watchExpenses() {
+    _expenseRepo.watch().listen(
+      (expenses) {
+        _expenses = expenses;
+        notifyListeners();
+      },
+      onError: (error) {
+        _error = 'Failed to load expenses: $error';
+        notifyListeners();
+      },
+    );
+  }
+
+  /// Legacy method for Hive (deprecated)
   Future<void> _loadExpenses() async {
     _setLoading(true);
     try {
-      _expenses = _databaseService.getExpenses();
+      // TODO(CURSOR): This is deprecated, use _watchExpenses() instead
       _error = '';
     } catch (e) {
       _error = 'Failed to load expenses: $e';
@@ -107,8 +133,7 @@ class ExpenseProvider with ChangeNotifier {
         dateTime: DateTime.now(),
       );
 
-      await _databaseService.addExpense(expense);
-      await _loadExpenses();
+      await _expenseRepo.add(expense);
       _error = '';
     } catch (e) {
       _error = 'Failed to process expense: $e';
@@ -128,8 +153,7 @@ class ExpenseProvider with ChangeNotifier {
         dateTime: DateTime.now(),
       );
 
-      await _databaseService.addExpense(expense);
-      await _loadExpenses();
+      await _expenseRepo.add(expense);
       _error = '';
     } catch (e) {
       _error = 'Failed to process expense: $e';
