@@ -33,6 +33,11 @@ migrate_working_dir/
 .pub/
 /build/
 
+# Environment & secrets
+.env
+.firebase/
+*.keystore
+
 # Symbolication related
 app.*.symbols
 

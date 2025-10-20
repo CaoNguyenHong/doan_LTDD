@@ -103,7 +103,7 @@ class ProfileScreen extends StatelessWidget {
                     ),
                     ListTile(
                       title: const Text('Sign Out'),
-                      subtitle: Text('Sign out of your account'),
+                      subtitle: const Text('Sign out of your account'),
                       leading: const Icon(Icons.logout),
                       onTap: () => _showSignOutDialog(context),
                     ),

@@ -56,10 +56,10 @@ class _HomeScreenState extends State<HomeScreen> {
         return Scaffold(
           appBar: AppBar(
             title: const Text('SpendSage'),
-            actions: [
-              const TotalAmountDisplay(),
-              const SizedBox(width: 16),
-              const FilterSelector(),
+            actions: const [
+              TotalAmountDisplay(),
+              SizedBox(width: 16),
+              FilterSelector(),
             ],
           ),
           body: Column(

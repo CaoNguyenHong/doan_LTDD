@@ -3,6 +3,7 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:spend_sage/hive/expense.dart';
 import 'package:spend_sage/service/api_service.dart';
 import 'package:spend_sage/service/adaptive_expense_parser.dart';
+import 'package:spend_sage/service/expense_repo.dart';
 import 'package:spend_sage/data/firestore_data_source.dart';
 import 'package:spend_sage/data/firestore_expense_repo.dart';
 import 'package:uuid/uuid.dart';
@@ -57,7 +58,7 @@ class ExpenseProvider with ChangeNotifier {
   Future<void> deleteExpense(String id) async {
     _setLoading(true);
     try {
-      await _expenseRepo.remove(id);
+      await _expenseRepo.deleteExpense(id);
       _error = '';
     } catch (e) {
       _error = 'Failed to delete expense: $e';
@@ -80,7 +81,7 @@ class ExpenseProvider with ChangeNotifier {
         description: description,
         dateTime: DateTime.now(),
       );
-      await _expenseRepo.update(updatedExpense);
+      await _expenseRepo.updateExpense(updatedExpense.id, updatedExpense);
       _error = '';
     } catch (e) {
       _error = 'Failed to update expense: $e';
@@ -107,7 +108,7 @@ class ExpenseProvider with ChangeNotifier {
 
   /// Watch expenses from Firestore
   void _watchExpenses() {
-    _expenseRepo.watch().listen(
+    _expenseRepo.watchExpenses().listen(
       (expenses) {
         _expenses = expenses;
         notifyListeners();
@@ -143,7 +144,7 @@ class ExpenseProvider with ChangeNotifier {
         dateTime: DateTime.now(),
       );
 
-      await _expenseRepo.add(expense);
+      await _expenseRepo.addExpense(expense);
       _error = '';
     } catch (e) {
       _error = 'Failed to process expense: $e';
@@ -163,7 +164,7 @@ class ExpenseProvider with ChangeNotifier {
         dateTime: DateTime.now(),
       );
 
-      await _expenseRepo.add(expense);
+      await _expenseRepo.addExpense(expense);
       _error = '';
     } catch (e) {
       _error = 'Failed to process expense: $e';

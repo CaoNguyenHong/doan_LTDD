@@ -34,7 +34,7 @@ class ExpenseChart extends StatelessWidget {
                   barTouchData: BarTouchData(
                     enabled: true,
                     touchTooltipData: BarTouchTooltipData(
-                      tooltipBgColor: Colors.blueGrey.withOpacity(0.8),
+                      tooltipBgColor: Colors.blueGrey.withValues(alpha: 0.8),
                       getTooltipItem: (group, _, rod, __) {
                         return BarTooltipItem(
                           '\$${rod.toY.toStringAsFixed(2)}',

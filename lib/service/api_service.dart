@@ -41,7 +41,7 @@ class AIService {
         if (!parsed.containsKey('category') ||
             !parsed.containsKey('amount') ||
             !parsed.containsKey('description')) {
-          throw FormatException('Missing required fields in AI response');
+          throw const FormatException('Missing required fields in AI response');
         }
 
         // Ensure amount is a double

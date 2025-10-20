@@ -177,11 +177,11 @@ class SettingsProvider with ChangeNotifier {
     final remaining = limit - currentAmount;
 
     if (percentage >= 100) {
-      return 'Exceeded limit by ${currency}${(currentAmount - limit).toStringAsFixed(2)}';
+      return 'Exceeded limit by $currency${(currentAmount - limit).toStringAsFixed(2)}';
     } else if (percentage >= 75) {
-      return '${currency}${remaining.toStringAsFixed(2)} remaining';
+      return '$currency${remaining.toStringAsFixed(2)} remaining';
     } else if (percentage >= 50) {
-      return '${currency}${remaining.toStringAsFixed(2)} remaining';
+      return '$currency${remaining.toStringAsFixed(2)} remaining';
     }
     return '';
   }

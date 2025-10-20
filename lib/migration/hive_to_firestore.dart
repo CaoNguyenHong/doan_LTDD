@@ -1,5 +1,5 @@
 import 'package:firebase_auth/firebase_auth.dart';
-import 'package:cloud_firestore/cloud_firestore.dart';
+// import 'package:cloud_firestore/cloud_firestore.dart'; // TODO(CURSOR): Uncomment if needed
 import '../service/database_service.dart';
 import '../data/firestore_data_source.dart';
 
@@ -21,8 +21,8 @@ class HiveToFirestoreMigration {
     final uid = user.uid;
 
     // Check if user already has expenses in Firestore
-    final hasExpenses = await _firestoreDataSource.hasExpenses(uid);
-    if (hasExpenses) {
+    final expenses = await _firestoreDataSource.getExpenses(uid);
+    if (expenses.isNotEmpty) {
       print('Migration skipped: User already has data in Firestore');
       return;
     }
@@ -50,12 +50,7 @@ class HiveToFirestoreMigration {
       print('Migrating ${hiveExpenses.length} expenses...');
 
       for (final expense in hiveExpenses) {
-        await _firestoreDataSource.addExpense(uid, {
-          'category': expense.category,
-          'amount': expense.amount,
-          'description': expense.description,
-          'dateTime': Timestamp.fromDate(expense.dateTime.toUtc()),
-        });
+        await _firestoreDataSource.addExpense(uid, expense);
       }
 
       print('Expenses migration completed');
@@ -83,7 +78,8 @@ class HiveToFirestoreMigration {
     if (user == null) return false;
 
     final uid = user.uid;
-    final hasCloudData = await _firestoreDataSource.hasExpenses(uid);
+    final expenses = await _firestoreDataSource.getExpenses(uid);
+    final hasCloudData = expenses.isNotEmpty;
 
     // Migration needed if Firestore is empty and Hive has data
     if (!hasCloudData && _hiveService != null) {
@@ -100,7 +96,8 @@ class HiveToFirestoreMigration {
     if (user == null) return MigrationStatus.notAuthenticated;
 
     final uid = user.uid;
-    final hasCloudData = await _firestoreDataSource.hasExpenses(uid);
+    final expenses = await _firestoreDataSource.getExpenses(uid);
+    final hasCloudData = expenses.isNotEmpty;
 
     if (hasCloudData) {
       return MigrationStatus.alreadyMigrated;

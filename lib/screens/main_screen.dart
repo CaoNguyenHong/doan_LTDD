@@ -15,9 +15,9 @@ class _MainScreenState extends State<MainScreen> {
 
   // three screens to display
   final List<Widget> _screens = <Widget>[
-    HomeScreen(),
-    ChartsScreen(),
-    ProfileScreen(),
+    const HomeScreen(),
+    const ChartsScreen(),
+    const ProfileScreen(),
   ];
   @override
   Widget build(BuildContext context) {

@@ -3,7 +3,7 @@ import 'package:flutter/foundation.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:flutter_dotenv/flutter_dotenv.dart';
+// import 'package:flutter_dotenv/flutter_dotenv.dart'; // TODO(CURSOR): Dùng --dart-define thay vì .env
 import 'package:provider/provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:spend_sage/providers/expense_provider.dart';
@@ -34,8 +34,8 @@ void main() async {
   // Initialize Firebase
   await _initFirebase();
 
-  // Load environment variables
-  await dotenv.load(fileName: ".env");
+  // TODO(CURSOR): Dùng --dart-define thay vì .env file
+  // await dotenv.load(fileName: ".env");
 
   // Initialize services
   final prefs = await SharedPreferences.getInstance();
@@ -44,7 +44,7 @@ void main() async {
   await databaseService.init();
 
   final aiService = AIService(
-    apiKey: dotenv.env['GOOGLE_API_KEY'] ?? '',
+    apiKey: const String.fromEnvironment('GEMINI_API_KEY', defaultValue: ''),
   );
 
   runApp(MyApp(
@@ -52,6 +52,9 @@ void main() async {
     aiService: aiService,
     prefs: prefs,
   ));
+  
+  // TODO(CURSOR): Bật auth gate sau khi setup Firebase xong
+  // Thay MyApp bằng AuthGate để enable authentication
 }
 
 class MyApp extends StatelessWidget {
