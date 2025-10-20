@@ -9,6 +9,11 @@ class AuthGate extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    // TODO: Temporarily bypass authentication for development
+    // In production, uncomment the code below and remove the direct return
+    return const MainScreen();
+
+    /*
     final authRepo = AuthRepo();
     
     return StreamBuilder<User?>(
@@ -32,5 +37,6 @@ class AuthGate extends StatelessWidget {
         return const SignInScreen();
       },
     );
+    */
   }
 }

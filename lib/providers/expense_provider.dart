@@ -20,17 +20,27 @@ class ExpenseProvider with ChangeNotifier {
 
   /// Factory constructor for Firestore
   ExpenseProvider.firestore() : _aiService = AIService(apiKey: '') {
-    final uid = FirebaseAuth.instance.currentUser!.uid;
-    _expenseRepo = FirestoreExpenseRepo(
-      uid: uid,
-      dataSource: FirestoreDataSource(),
-    );
-    _watchExpenses();
+    final user = FirebaseAuth.instance.currentUser;
+    if (user != null) {
+      _expenseRepo = FirestoreExpenseRepo(
+        uid: user.uid,
+        dataSource: FirestoreDataSource(),
+      );
+      _watchExpenses();
+    } else {
+      // Fallback to Hive for development
+      _expenseRepo = FirestoreExpenseRepo(
+        uid: 'demo-user',
+        dataSource: FirestoreDataSource(),
+      );
+      _watchExpenses();
+    }
   }
 
   /// Legacy constructor for Hive (deprecated)
   ExpenseProvider({
-    required dynamic databaseService, // TODO(CURSOR): Remove when fully migrated
+    required dynamic
+        databaseService, // TODO(CURSOR): Remove when fully migrated
     required AIService aiService,
   }) : _aiService = aiService {
     // TODO(CURSOR): This is deprecated, use ExpenseProvider.firestore() instead

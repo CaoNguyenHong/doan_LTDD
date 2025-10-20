@@ -4,10 +4,12 @@ import '../service/database_service.dart';
 import '../data/firestore_data_source.dart';
 
 class HiveToFirestoreMigration {
-  final DatabaseService? _hiveService; // TODO(CURSOR): Optional, remove when fully migrated
+  final DatabaseService?
+      _hiveService; // TODO(CURSOR): Optional, remove when fully migrated
   final FirestoreDataSource _firestoreDataSource = FirestoreDataSource();
 
-  HiveToFirestoreMigration({DatabaseService? hiveService}) : _hiveService = hiveService;
+  HiveToFirestoreMigration({DatabaseService? hiveService})
+      : _hiveService = hiveService;
 
   /// Run migration once if Firestore is empty
   Future<void> runOnceIfCloudEmpty() async {
@@ -17,7 +19,7 @@ class HiveToFirestoreMigration {
     }
 
     final uid = user.uid;
-    
+
     // Check if user already has expenses in Firestore
     final hasExpenses = await _firestoreDataSource.hasExpenses(uid);
     if (hasExpenses) {
@@ -55,7 +57,7 @@ class HiveToFirestoreMigration {
           'dateTime': Timestamp.fromDate(expense.dateTime.toUtc()),
         });
       }
-      
+
       print('Expenses migration completed');
     } catch (e) {
       print('Failed to migrate expenses: $e');
@@ -82,13 +84,13 @@ class HiveToFirestoreMigration {
 
     final uid = user.uid;
     final hasCloudData = await _firestoreDataSource.hasExpenses(uid);
-    
+
     // Migration needed if Firestore is empty and Hive has data
     if (!hasCloudData && _hiveService != null) {
-      final hiveExpenses = _hiveService!.getExpenses();
+      final hiveExpenses = _hiveService.getExpenses();
       return hiveExpenses.isNotEmpty;
     }
-    
+
     return false;
   }
 
@@ -99,20 +101,20 @@ class HiveToFirestoreMigration {
 
     final uid = user.uid;
     final hasCloudData = await _firestoreDataSource.hasExpenses(uid);
-    
+
     if (hasCloudData) {
       return MigrationStatus.alreadyMigrated;
     }
-    
+
     if (_hiveService == null) {
       return MigrationStatus.noHiveData;
     }
-    
-    final hiveExpenses = _hiveService!.getExpenses();
+
+    final hiveExpenses = _hiveService.getExpenses();
     if (hiveExpenses.isEmpty) {
       return MigrationStatus.noDataToMigrate;
     }
-    
+
     return MigrationStatus.readyToMigrate;
   }
 }

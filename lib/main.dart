@@ -1,5 +1,8 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/foundation.dart';
 import 'package:firebase_core/firebase_core.dart';
+import 'package:firebase_auth/firebase_auth.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:provider/provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -12,13 +15,22 @@ import 'firebase_options.dart';
 
 Future<void> _initFirebase() async {
   await Firebase.initializeApp(options: DefaultFirebaseOptions.currentPlatform);
-  // TODO(CURSOR): Enable persistence for web if needed
-  // FirebaseFirestore.instance.settings = const Settings(persistenceEnabled: true);
+
+  // Use Firebase Emulator for development
+  if (kDebugMode) {
+    try {
+      await FirebaseAuth.instance.useAuthEmulator('localhost', 9099);
+      FirebaseFirestore.instance.useFirestoreEmulator('localhost', 8080);
+      print('🔥 Using Firebase Emulator');
+    } catch (e) {
+      print('⚠️ Firebase Emulator not available: $e');
+    }
+  }
 }
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
-  
+
   // Initialize Firebase
   await _initFirebase();
 
