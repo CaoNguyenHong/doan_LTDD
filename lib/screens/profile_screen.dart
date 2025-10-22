@@ -3,6 +3,7 @@ import 'package:provider/provider.dart';
 import 'package:currency_picker/currency_picker.dart';
 import '../providers/settings_provider.dart';
 import '../auth/auth_repo.dart';
+import '../auth/auth_gate.dart';
 
 class ProfileScreen extends StatelessWidget {
   const ProfileScreen({super.key});
@@ -265,13 +266,58 @@ class ProfileScreen extends StatelessWidget {
 
   Future<void> _signOut(BuildContext context) async {
     try {
+      print('ProfileScreen: Starting sign out process');
+
+      // Show loading indicator
+      if (context.mounted) {
+        showDialog(
+          context: context,
+          barrierDismissible: false,
+          builder: (context) => const Center(
+            child: CircularProgressIndicator(),
+          ),
+        );
+      }
+
       final authRepo = AuthRepo();
+      print('ProfileScreen: Calling authRepo.signOut()');
       await authRepo.signOut();
-      // Navigation will be handled by AuthGate
-    } catch (e) {
+      print('ProfileScreen: Sign out completed');
+
+      // Close loading dialog
+      if (context.mounted) {
+        Navigator.of(context).pop();
+      }
+
+      // Show success message
       if (context.mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Sign out failed: $e')),
+          const SnackBar(
+            content: Text('Đăng xuất thành công! 🎉'),
+            backgroundColor: Colors.green,
+            duration: Duration(seconds: 2),
+          ),
+        );
+      }
+
+      // Clear navigation stack and let AuthGate handle the rest
+      if (context.mounted) {
+        Navigator.of(context).pushAndRemoveUntil(
+          MaterialPageRoute(builder: (context) => const AuthGate()),
+          (route) => false,
+        );
+      }
+    } catch (e) {
+      print('ProfileScreen: Sign out error: $e');
+
+      // Close loading dialog if still open
+      if (context.mounted) {
+        Navigator.of(context).pop();
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Đăng xuất thất bại: $e'),
+            backgroundColor: Colors.red,
+          ),
         );
       }
     }

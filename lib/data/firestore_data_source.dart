@@ -6,23 +6,37 @@ class FirestoreDataSource {
 
   /// Add expense to Firestore
   Future<void> addExpense(String uid, Expense expense) async {
-    await _firestore
-        .collection('users')
-        .doc(uid)
-        .collection('expenses')
-        .add({
-      'category': expense.category,
-      'amount': expense.amount,
-      'description': expense.description,
-      'dateTime': Timestamp.fromDate(expense.dateTime),
-      'createdAt': FieldValue.serverTimestamp(),
-      'updatedAt': FieldValue.serverTimestamp(),
-      'deleted': false,
-    });
+    print('🔥 FirestoreDataSource: Adding expense to Firestore');
+    print('🔥 FirestoreDataSource: UID = $uid');
+    print(
+        '🔥 FirestoreDataSource: Expense = ${expense.category}, ${expense.amount}, ${expense.description}');
+
+    try {
+      final docRef = await _firestore
+          .collection('users')
+          .doc(uid)
+          .collection('expenses')
+          .add({
+        'category': expense.category,
+        'amount': expense.amount,
+        'description': expense.description,
+        'dateTime': Timestamp.fromDate(expense.dateTime),
+        'createdAt': FieldValue.serverTimestamp(),
+        'updatedAt': FieldValue.serverTimestamp(),
+        'deleted': false,
+      });
+
+      print(
+          '🔥 FirestoreDataSource: Expense added successfully with ID: ${docRef.id}');
+    } catch (e) {
+      print('🔥 FirestoreDataSource: Error adding expense: $e');
+      rethrow;
+    }
   }
 
   /// Update expense in Firestore
-  Future<void> updateExpense(String uid, String expenseId, Expense expense) async {
+  Future<void> updateExpense(
+      String uid, String expenseId, Expense expense) async {
     await _firestore
         .collection('users')
         .doc(uid)
@@ -56,11 +70,13 @@ class FirestoreDataSource {
         .collection('users')
         .doc(uid)
         .collection('expenses')
-        .where('deleted', isEqualTo: false)
         .orderBy('dateTime', descending: true)
         .snapshots()
         .map((snapshot) {
-      return snapshot.docs.map((doc) {
+      return snapshot.docs
+          .where((doc) =>
+              doc.data()['deleted'] != true) // Filter deleted in memory
+          .map((doc) {
         final data = doc.data();
         return {
           'id': doc.id,
@@ -100,7 +116,8 @@ class FirestoreDataSource {
   }
 
   /// Add user settings
-  Future<void> addUserSettings(String uid, Map<String, dynamic> settings) async {
+  Future<void> addUserSettings(
+      String uid, Map<String, dynamic> settings) async {
     await _firestore
         .collection('users')
         .doc(uid)
@@ -137,7 +154,8 @@ class FirestoreDataSource {
   }
 
   /// Add learned category
-  Future<void> addLearnedCategory(String uid, String word, String category) async {
+  Future<void> addLearnedCategory(
+      String uid, String word, String category) async {
     await _firestore
         .collection('users')
         .doc(uid)
@@ -176,7 +194,7 @@ class FirestoreDataSource {
         .snapshots()
         .map((snapshot) {
       if (!snapshot.exists) return null;
-      
+
       final data = snapshot.data()!;
       return {
         'currency': data['currency'],

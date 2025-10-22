@@ -1,4 +1,4 @@
-package com.example.spend_sage
+package com.spendsage.app
 
 import io.flutter.embedding.android.FlutterActivity
 

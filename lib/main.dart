@@ -16,16 +16,19 @@ import 'firebase_options.dart';
 Future<void> _initFirebase() async {
   await Firebase.initializeApp(options: DefaultFirebaseOptions.currentPlatform);
 
-  // Use Firebase Emulator for development
-  if (kDebugMode) {
-    try {
-      await FirebaseAuth.instance.useAuthEmulator('localhost', 9099);
-      FirebaseFirestore.instance.useFirestoreEmulator('localhost', 8080);
-      print('🔥 Using Firebase Emulator');
-    } catch (e) {
-      print('⚠️ Firebase Emulator not available: $e');
-    }
-  }
+  // Use Firebase Production for now (emulator has issues)
+  print('🔥 Using Firebase Production');
+
+  // TODO: Fix emulator configuration later
+  // if (kDebugMode) {
+  //   try {
+  //     await FirebaseAuth.instance.useAuthEmulator('localhost', 9099);
+  //     FirebaseFirestore.instance.useFirestoreEmulator('localhost', 8080);
+  //     print('🔥 Using Firebase Emulator');
+  //   } catch (e) {
+  //     print('⚠️ Firebase Emulator not available: $e');
+  //   }
+  // }
 }
 
 void main() async {
@@ -52,7 +55,7 @@ void main() async {
     aiService: aiService,
     prefs: prefs,
   ));
-  
+
   // TODO(CURSOR): Bật auth gate sau khi setup Firebase xong
   // Thay MyApp bằng AuthGate để enable authentication
 }

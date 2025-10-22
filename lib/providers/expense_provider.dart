@@ -133,9 +133,12 @@ class ExpenseProvider with ChangeNotifier {
   }
 
   Future<void> addExpenseFromText(String text) async {
+    print('💰 ExpenseProvider: Starting addExpenseFromText with: $text');
     _setLoading(true);
     try {
       final expenseData = await _aiService.processExpenseInput(text);
+      print('💰 ExpenseProvider: AI processed data: $expenseData');
+
       final expense = Expense(
         id: const Uuid().v4(),
         category: expenseData['category'],
@@ -144,9 +147,13 @@ class ExpenseProvider with ChangeNotifier {
         dateTime: DateTime.now(),
       );
 
+      print(
+          '💰 ExpenseProvider: Created expense: ${expense.category}, ${expense.amount}, ${expense.description}');
       await _expenseRepo.addExpense(expense);
+      print('💰 ExpenseProvider: Expense added to repository successfully');
       _error = '';
     } catch (e) {
+      print('💰 ExpenseProvider: Error adding expense: $e');
       _error = 'Failed to process expense: $e';
     }
     _setLoading(false);
