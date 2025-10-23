@@ -10,7 +10,7 @@ import 'package:uuid/uuid.dart';
 
 class ExpenseProvider with ChangeNotifier {
   final AIService _aiService;
-  late final ExpenseRepo _expenseRepo;
+  ExpenseRepo? _expenseRepo;
   List<Expense> _expenses = [];
   String _filterMode = 'daily';
   DateTime _selectedDate = DateTime.now();
@@ -21,21 +21,38 @@ class ExpenseProvider with ChangeNotifier {
 
   /// Factory constructor for Firestore
   ExpenseProvider.firestore() : _aiService = AIService(apiKey: '') {
+    _initializeWithCurrentUser();
+  }
+
+  /// Initialize with current user
+  void _initializeWithCurrentUser() {
     final user = FirebaseAuth.instance.currentUser;
     if (user != null) {
+      print('💰 ExpenseProvider: Initializing with user UID: ${user.uid}');
       _expenseRepo = FirestoreExpenseRepo(
         uid: user.uid,
         dataSource: FirestoreDataSource(),
       );
       _watchExpenses();
     } else {
-      // Fallback to Hive for development
+      print('💰 ExpenseProvider: No user found, using demo-user');
+      // Fallback to demo user for development
       _expenseRepo = FirestoreExpenseRepo(
         uid: 'demo-user',
         dataSource: FirestoreDataSource(),
       );
       _watchExpenses();
     }
+  }
+
+  /// Update user when authentication state changes
+  void updateUser() {
+    print('💰 ExpenseProvider: Updating user...');
+    // Clear old expenses before switching user
+    _expenses = [];
+    _error = '';
+    _initializeWithCurrentUser();
+    notifyListeners();
   }
 
   /// Legacy constructor for Hive (deprecated)
@@ -56,9 +73,10 @@ class ExpenseProvider with ChangeNotifier {
   double get totalAmount => _calculateTotal();
 
   Future<void> deleteExpense(String id) async {
+    if (_expenseRepo == null) return;
     _setLoading(true);
     try {
-      await _expenseRepo.deleteExpense(id);
+      await _expenseRepo!.deleteExpense(id);
       _error = '';
     } catch (e) {
       _error = 'Failed to delete expense: $e';
@@ -81,7 +99,7 @@ class ExpenseProvider with ChangeNotifier {
         description: description,
         dateTime: DateTime.now(),
       );
-      await _expenseRepo.updateExpense(updatedExpense.id, updatedExpense);
+      await _expenseRepo!.updateExpense(updatedExpense.id, updatedExpense);
       _error = '';
     } catch (e) {
       _error = 'Failed to update expense: $e';
@@ -108,7 +126,8 @@ class ExpenseProvider with ChangeNotifier {
 
   /// Watch expenses from Firestore
   void _watchExpenses() {
-    _expenseRepo.watchExpenses().listen(
+    if (_expenseRepo == null) return;
+    _expenseRepo!.watchExpenses().listen(
       (expenses) {
         _expenses = expenses;
         notifyListeners();
@@ -136,8 +155,9 @@ class ExpenseProvider with ChangeNotifier {
     print('💰 ExpenseProvider: Starting addExpenseFromText with: $text');
     _setLoading(true);
     try {
-      final expenseData = await _aiService.processExpenseInput(text);
-      print('💰 ExpenseProvider: AI processed data: $expenseData');
+      // Use local parser instead of AI (more reliable)
+      final expenseData = AdaptiveExpenseParser.parseExpenseInput(text);
+      print('💰 ExpenseProvider: Local parser processed data: $expenseData');
 
       final expense = Expense(
         id: const Uuid().v4(),
@@ -149,12 +169,12 @@ class ExpenseProvider with ChangeNotifier {
 
       print(
           '💰 ExpenseProvider: Created expense: ${expense.category}, ${expense.amount}, ${expense.description}');
-      await _expenseRepo.addExpense(expense);
+      await _expenseRepo!.addExpense(expense);
       print('💰 ExpenseProvider: Expense added to repository successfully');
       _error = '';
     } catch (e) {
       print('💰 ExpenseProvider: Error adding expense: $e');
-      _error = 'Failed to process expense: $e';
+      _error = 'Không thể xử lý chi tiêu: $e';
     }
     _setLoading(false);
   }
@@ -171,10 +191,10 @@ class ExpenseProvider with ChangeNotifier {
         dateTime: DateTime.now(),
       );
 
-      await _expenseRepo.addExpense(expense);
+      await _expenseRepo!.addExpense(expense);
       _error = '';
     } catch (e) {
-      _error = 'Failed to process expense: $e';
+      _error = 'Không thể xử lý chi tiêu: $e';
     }
     _setLoading(false);
   }

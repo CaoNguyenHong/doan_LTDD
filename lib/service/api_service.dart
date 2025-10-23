@@ -49,10 +49,10 @@ class AIService {
 
         return parsed;
       } catch (e) {
-        throw FormatException('Failed to parse AI response: $e');
+        throw FormatException('Không thể phân tích phản hồi AI: $e');
       }
     } catch (e) {
-      throw Exception('Failed to process expense: $e');
+      throw Exception('Không thể xử lý chi tiêu: $e');
     }
   }
 }

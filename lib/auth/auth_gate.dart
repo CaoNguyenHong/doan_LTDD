@@ -1,7 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:provider/provider.dart';
 import '../screens/main_screen.dart';
 import '../screens/auth/welcome_screen.dart';
+import '../providers/expense_provider.dart';
+import '../providers/settings_provider.dart';
 import 'auth_repo.dart';
 
 class AuthGate extends StatelessWidget {
@@ -32,6 +35,15 @@ class AuthGate extends StatelessWidget {
         // If user is signed in, show main app
         if (snapshot.hasData && snapshot.data != null) {
           print('AuthGate: User is signed in, showing MainScreen');
+          // Update ExpenseProvider and SettingsProvider with current user
+          WidgetsBinding.instance.addPostFrameCallback((_) {
+            final expenseProvider =
+                Provider.of<ExpenseProvider>(context, listen: false);
+            final settingsProvider =
+                Provider.of<SettingsProvider>(context, listen: false);
+            expenseProvider.updateUser();
+            settingsProvider.updateUser();
+          });
           return const MainScreen(key: ValueKey('main_screen'));
         }
 

@@ -85,7 +85,9 @@ class FirestoreDataSource {
           'description': data['description'],
           'dateTime': (data['dateTime'] as Timestamp).toDate(),
           'createdAt': (data['createdAt'] as Timestamp).toDate(),
-          'updatedAt': (data['updatedAt'] as Timestamp).toDate(),
+          'updatedAt': data['updatedAt'] != null
+              ? (data['updatedAt'] as Timestamp).toDate()
+              : DateTime.now(),
         };
       }).toList();
     });
@@ -110,7 +112,9 @@ class FirestoreDataSource {
         'description': data['description'],
         'dateTime': (data['dateTime'] as Timestamp).toDate(),
         'createdAt': (data['createdAt'] as Timestamp).toDate(),
-        'updatedAt': (data['updatedAt'] as Timestamp).toDate(),
+        'updatedAt': data['updatedAt'] != null
+            ? (data['updatedAt'] as Timestamp).toDate()
+            : DateTime.now(),
       };
     }).toList();
   }
@@ -149,7 +153,9 @@ class FirestoreDataSource {
       'weeklyLimit': data['weeklyLimit'],
       'monthlyLimit': data['monthlyLimit'],
       'yearlyLimit': data['yearlyLimit'],
-      'updatedAt': (data['updatedAt'] as Timestamp).toDate(),
+      'updatedAt': data['updatedAt'] != null
+          ? (data['updatedAt'] as Timestamp).toDate()
+          : DateTime.now(),
     };
   }
 
@@ -204,7 +210,9 @@ class FirestoreDataSource {
         'weeklyLimit': data['weeklyLimit'],
         'monthlyLimit': data['monthlyLimit'],
         'yearlyLimit': data['yearlyLimit'],
-        'updatedAt': (data['updatedAt'] as Timestamp).toDate(),
+        'updatedAt': data['updatedAt'] != null
+            ? (data['updatedAt'] as Timestamp).toDate()
+            : DateTime.now(),
       };
     });
   }

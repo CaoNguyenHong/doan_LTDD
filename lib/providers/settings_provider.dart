@@ -19,8 +19,21 @@ class SettingsProvider with ChangeNotifier {
   double _yearlyLimit = 0.0;
 
   SettingsProvider(this._prefs) {
+    _initializeWithCurrentUser();
+  }
+
+  /// Initialize with current user
+  void _initializeWithCurrentUser() {
     _uid = FirebaseAuth.instance.currentUser?.uid;
+    print('⚙️ SettingsProvider: Initializing with user UID: $_uid');
     _loadSettings();
+  }
+
+  /// Update user when authentication state changes
+  void updateUser() {
+    print('⚙️ SettingsProvider: Updating user...');
+    _initializeWithCurrentUser();
+    notifyListeners();
   }
 
   bool get isDarkMode => _isDarkMode;
@@ -78,7 +91,7 @@ class SettingsProvider with ChangeNotifier {
   Future<void> setDarkMode(bool value) async {
     _isDarkMode = value;
     await _prefs.setBool('isDarkMode', value);
-    
+
     if (_uid != null) {
       await _firestoreDataSource.updateSettings(_uid!, {'darkMode': value});
     }
@@ -88,7 +101,7 @@ class SettingsProvider with ChangeNotifier {
   Future<void> setCurrency(String value) async {
     _currency = value;
     await _prefs.setString('currency', value);
-    
+
     if (_uid != null) {
       await _firestoreDataSource.updateSettings(_uid!, {'currency': value});
     }
@@ -98,7 +111,7 @@ class SettingsProvider with ChangeNotifier {
   Future<void> setUserName(String value) async {
     _userName = value;
     await _prefs.setString('userName', value);
-    
+
     if (_uid != null) {
       await _firestoreDataSource.updateSettings(_uid!, {'userName': value});
     }
@@ -108,9 +121,10 @@ class SettingsProvider with ChangeNotifier {
   Future<void> setMonthlyIncome(double value) async {
     _monthlyIncome = value;
     await _prefs.setDouble('monthlyIncome', value);
-    
+
     if (_uid != null) {
-      await _firestoreDataSource.updateSettings(_uid!, {'monthlyIncome': value});
+      await _firestoreDataSource
+          .updateSettings(_uid!, {'monthlyIncome': value});
     }
     notifyListeners();
   }
@@ -118,7 +132,7 @@ class SettingsProvider with ChangeNotifier {
   Future<void> setDailyLimit(double value) async {
     _dailyLimit = value;
     await _prefs.setDouble('dailyLimit', value);
-    
+
     if (_uid != null) {
       await _firestoreDataSource.updateSettings(_uid!, {'dailyLimit': value});
     }
@@ -128,7 +142,7 @@ class SettingsProvider with ChangeNotifier {
   Future<void> setWeeklyLimit(double value) async {
     _weeklyLimit = value;
     await _prefs.setDouble('weeklyLimit', value);
-    
+
     if (_uid != null) {
       await _firestoreDataSource.updateSettings(_uid!, {'weeklyLimit': value});
     }
@@ -138,7 +152,7 @@ class SettingsProvider with ChangeNotifier {
   Future<void> setMonthlyLimit(double value) async {
     _monthlyLimit = value;
     await _prefs.setDouble('monthlyLimit', value);
-    
+
     if (_uid != null) {
       await _firestoreDataSource.updateSettings(_uid!, {'monthlyLimit': value});
     }
@@ -148,7 +162,7 @@ class SettingsProvider with ChangeNotifier {
   Future<void> setYearlyLimit(double value) async {
     _yearlyLimit = value;
     await _prefs.setDouble('yearlyLimit', value);
-    
+
     if (_uid != null) {
       await _firestoreDataSource.updateSettings(_uid!, {'yearlyLimit': value});
     }

@@ -17,11 +17,11 @@ class FilterSelector extends StatelessWidget {
           }
         },
         itemBuilder: (BuildContext context) => [
-          const PopupMenuItem(value: 'daily', child: Text('Daily')),
-          const PopupMenuItem(value: 'weekly', child: Text('Weekly')),
-          const PopupMenuItem(value: 'monthly', child: Text('Monthly')),
-          const PopupMenuItem(value: 'yearly', child: Text('Yearly')),
-          const PopupMenuItem(value: 'custom', child: Text('Custom Range')),
+          const PopupMenuItem(value: 'daily', child: Text('Hàng ngày')),
+          const PopupMenuItem(value: 'weekly', child: Text('Hàng tuần')),
+          const PopupMenuItem(value: 'monthly', child: Text('Hàng tháng')),
+          const PopupMenuItem(value: 'yearly', child: Text('Hàng năm')),
+          const PopupMenuItem(value: 'custom', child: Text('Khoảng tùy chỉnh')),
         ],
       ),
     );

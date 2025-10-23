@@ -13,14 +13,12 @@ class ExpenseList extends StatelessWidget {
   Widget build(BuildContext context) {
     if (expenses.isEmpty) {
       return const Center(
-        child: Text('No expenses for this period'),
+        child: Text('Không có chi tiêu cho khoảng thời gian này'),
       );
     }
 
-    return ListView.builder(
-      itemCount: expenses.length,
-      itemBuilder: (context, index) {
-        final expense = expenses[index];
+    return Column(
+      children: expenses.map((expense) {
         return Dismissible(
           key: Key(expense.id),
           background: Container(
@@ -42,18 +40,33 @@ class ExpenseList extends StatelessWidget {
                 color: Colors.white,
               ),
             ),
-            title: Text(expense.description),
+            title: Text(
+              expense.description,
+              style: const TextStyle(
+                color: Colors.black,
+                fontSize: 16,
+                fontWeight: FontWeight.w500,
+              ),
+            ),
             subtitle: Text(
-              '${expense.category} • ${_formatDate(expense.dateTime)}',
+              '${_getCategoryDisplayName(expense.category)} • ${_formatDate(expense.dateTime)}',
+              style: TextStyle(
+                color: Colors.grey.shade600,
+                fontSize: 14,
+              ),
             ),
             trailing: Text(
               '\$${expense.amount.toStringAsFixed(2)}',
-              style: Theme.of(context).textTheme.titleMedium,
+              style: const TextStyle(
+                color: Colors.black,
+                fontSize: 16,
+                fontWeight: FontWeight.bold,
+              ),
             ),
             onTap: () => _showEditDialog(context, expense),
           ),
         );
-      },
+      }).toList(),
     );
   }
 
@@ -66,24 +79,32 @@ class ExpenseList extends StatelessWidget {
     );
     String selectedCategory = expense.category;
 
-                Utilities.showAnimatedDialog(
+    Utilities.showAnimatedDialog(
       context: context,
-      title: 'Edit Expense',
+      title: 'Chỉnh sửa chi tiêu',
       content: SingleChildScrollView(
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
             TextField(
               controller: descriptionController,
+              style: const TextStyle(
+                color: Colors.black,
+                fontSize: 16,
+              ),
               decoration: const InputDecoration(
-                labelText: 'Description',
+                labelText: 'Mô tả',
               ),
             ),
             const SizedBox(height: 16),
             TextField(
               controller: amountController,
+              style: const TextStyle(
+                color: Colors.black,
+                fontSize: 16,
+              ),
               decoration: const InputDecoration(
-                labelText: 'Amount',
+                labelText: 'Số tiền',
                 prefixText: '\$',
               ),
               keyboardType: TextInputType.number,
@@ -92,7 +113,7 @@ class ExpenseList extends StatelessWidget {
             DropdownButtonFormField<String>(
               initialValue: selectedCategory,
               decoration: const InputDecoration(
-                labelText: 'Category',
+                labelText: 'Danh mục',
               ),
               items: [
                 'food',
@@ -104,7 +125,7 @@ class ExpenseList extends StatelessWidget {
               ].map((String category) {
                 return DropdownMenuItem(
                   value: category,
-                  child: Text(category.toUpperCase()),
+                  child: Text(_getCategoryDisplayName(category)),
                 );
               }).toList(),
               onChanged: (String? value) {
@@ -119,7 +140,7 @@ class ExpenseList extends StatelessWidget {
       actions: [
         TextButton(
           onPressed: () => Navigator.pop(context),
-          child: const Text('Cancel'),
+          child: const Text('Hủy'),
         ),
         FilledButton(
           onPressed: () async {
@@ -147,7 +168,7 @@ class ExpenseList extends StatelessWidget {
               }
             }
           },
-          child: const Text('Save'),
+          child: const Text('Lưu'),
         ),
       ],
     );
@@ -231,6 +252,23 @@ class ExpenseList extends StatelessWidget {
 
   String _formatDate(DateTime dateTime) {
     return '${dateTime.day}/${dateTime.month}/${dateTime.year}';
+  }
+
+  String _getCategoryDisplayName(String category) {
+    switch (category.toLowerCase()) {
+      case 'food':
+        return 'Ăn uống';
+      case 'transport':
+        return 'Giao thông';
+      case 'shopping':
+        return 'Mua sắm';
+      case 'utilities':
+        return 'Tiện ích';
+      case 'entertainment':
+        return 'Giải trí';
+      default:
+        return 'Khác';
+    }
   }
 
   IconData _getCategoryIcon(String category) {
