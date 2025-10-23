@@ -118,8 +118,10 @@ class ExpenseList extends StatelessWidget {
               items: [
                 'food',
                 'transport',
-                'shopping',
                 'utilities',
+                'health',
+                'education',
+                'shopping',
                 'entertainment',
                 'other'
               ].map((String category) {
@@ -257,17 +259,21 @@ class ExpenseList extends StatelessWidget {
   String _getCategoryDisplayName(String category) {
     switch (category.toLowerCase()) {
       case 'food':
-        return 'Ăn uống';
+        return '🍽️ Ăn uống';
       case 'transport':
-        return 'Giao thông';
-      case 'shopping':
-        return 'Mua sắm';
+        return '🚗 Giao thông';
       case 'utilities':
-        return 'Tiện ích';
+        return '⚡ Tiện ích';
+      case 'health':
+        return '🏥 Sức khỏe';
+      case 'education':
+        return '📚 Giáo dục';
+      case 'shopping':
+        return '🛍️ Mua sắm';
       case 'entertainment':
-        return 'Giải trí';
+        return '🎬 Giải trí';
       default:
-        return 'Khác';
+        return '📦 Khác';
     }
   }
 
@@ -277,10 +283,14 @@ class ExpenseList extends StatelessWidget {
         return Icons.restaurant;
       case 'transport':
         return Icons.directions_car;
-      case 'shopping':
-        return Icons.shopping_bag;
       case 'utilities':
         return Icons.power;
+      case 'health':
+        return Icons.health_and_safety;
+      case 'education':
+        return Icons.school;
+      case 'shopping':
+        return Icons.shopping_bag;
       case 'entertainment':
         return Icons.movie;
       default:
