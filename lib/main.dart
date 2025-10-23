@@ -1,13 +1,13 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/foundation.dart';
 import 'package:firebase_core/firebase_core.dart';
-import 'package:firebase_auth/firebase_auth.dart';
-import 'package:cloud_firestore/cloud_firestore.dart';
 // import 'package:flutter_dotenv/flutter_dotenv.dart'; // TODO(CURSOR): Dùng --dart-define thay vì .env
 import 'package:provider/provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:spend_sage/providers/expense_provider.dart';
 import 'package:spend_sage/providers/settings_provider.dart';
+import 'package:spend_sage/providers/analytics_provider.dart';
+import 'package:spend_sage/providers/notification_provider.dart';
 import 'package:spend_sage/auth/auth_gate.dart';
 import 'package:spend_sage/service/api_service.dart';
 import 'package:spend_sage/service/database_service.dart';
@@ -81,6 +81,26 @@ class MyApp extends StatelessWidget {
         ),
         ChangeNotifierProvider(
           create: (context) => SettingsProvider(prefs),
+        ),
+        ChangeNotifierProxyProvider2<ExpenseProvider, SettingsProvider,
+            AnalyticsProvider>(
+          create: (context) => AnalyticsProvider(
+            Provider.of<ExpenseProvider>(context, listen: false),
+          ),
+          update: (context, expenseProvider, settingsProvider, previous) {
+            return previous ?? AnalyticsProvider(expenseProvider);
+          },
+        ),
+        ChangeNotifierProxyProvider2<ExpenseProvider, SettingsProvider,
+            NotificationProvider>(
+          create: (context) => NotificationProvider(
+            Provider.of<ExpenseProvider>(context, listen: false),
+            Provider.of<SettingsProvider>(context, listen: false),
+          ),
+          update: (context, expenseProvider, settingsProvider, previous) {
+            return previous ??
+                NotificationProvider(expenseProvider, settingsProvider);
+          },
         ),
       ],
       child: Consumer<SettingsProvider>(

@@ -3,6 +3,7 @@ import 'dart:math';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../data/firestore_data_source.dart';
+import '../service/currency_service.dart';
 
 class SettingsProvider with ChangeNotifier {
   final SharedPreferences _prefs;
@@ -11,12 +12,14 @@ class SettingsProvider with ChangeNotifier {
 
   bool _isDarkMode = false;
   String _currency = 'USD';
+  String _previousCurrency = 'USD';
   String _userName = '';
   double _monthlyIncome = 0.0;
   double _dailyLimit = 0.0;
   double _weeklyLimit = 0.0;
   double _monthlyLimit = 0.0;
   double _yearlyLimit = 0.0;
+  double _exchangeRate = 1.0;
 
   SettingsProvider(this._prefs) {
     _initializeWithCurrentUser();
@@ -38,12 +41,14 @@ class SettingsProvider with ChangeNotifier {
 
   bool get isDarkMode => _isDarkMode;
   String get currency => _currency;
+  String get previousCurrency => _previousCurrency;
   String get userName => _userName;
   double get monthlyIncome => _monthlyIncome;
   double get dailyLimit => _dailyLimit;
   double get weeklyLimit => _weeklyLimit;
   double get monthlyLimit => _monthlyLimit;
   double get yearlyLimit => _yearlyLimit;
+  double get exchangeRate => _exchangeRate;
 
   /// Load settings from Firestore with fallback to SharedPreferences
   void _loadSettings() {
@@ -56,12 +61,14 @@ class SettingsProvider with ChangeNotifier {
       if (settings != null) {
         _isDarkMode = settings['darkMode'] ?? false;
         _currency = settings['currency'] ?? 'USD';
+        _previousCurrency = settings['previousCurrency'] ?? 'USD';
         _userName = settings['userName'] ?? _generateDefaultUsername();
         _monthlyIncome = (settings['monthlyIncome'] ?? 0.0).toDouble();
         _dailyLimit = (settings['dailyLimit'] ?? 0.0).toDouble();
         _weeklyLimit = (settings['weeklyLimit'] ?? 0.0).toDouble();
         _monthlyLimit = (settings['monthlyLimit'] ?? 0.0).toDouble();
         _yearlyLimit = (settings['yearlyLimit'] ?? 0.0).toDouble();
+        _exchangeRate = (settings['exchangeRate'] ?? 1.0).toDouble();
         notifyListeners();
       } else {
         _loadFromLocal();
@@ -73,12 +80,14 @@ class SettingsProvider with ChangeNotifier {
   void _loadFromLocal() {
     _isDarkMode = _prefs.getBool('isDarkMode') ?? false;
     _currency = _prefs.getString('currency') ?? 'USD';
+    _previousCurrency = _prefs.getString('previousCurrency') ?? 'USD';
     _userName = _prefs.getString('userName') ?? _generateDefaultUsername();
     _monthlyIncome = _prefs.getDouble('monthlyIncome') ?? 0.0;
     _dailyLimit = _prefs.getDouble('dailyLimit') ?? 0.0;
     _weeklyLimit = _prefs.getDouble('weeklyLimit') ?? 0.0;
     _monthlyLimit = _prefs.getDouble('monthlyLimit') ?? 0.0;
     _yearlyLimit = _prefs.getDouble('yearlyLimit') ?? 0.0;
+    _exchangeRate = _prefs.getDouble('exchangeRate') ?? 1.0;
     notifyListeners();
   }
 
@@ -99,13 +108,43 @@ class SettingsProvider with ChangeNotifier {
   }
 
   Future<void> setCurrency(String value) async {
-    _currency = value;
-    await _prefs.setString('currency', value);
+    if (_currency != value) {
+      _previousCurrency = _currency;
+      _currency = value;
 
-    if (_uid != null) {
-      await _firestoreDataSource.updateSettings(_uid!, {'currency': value});
+      // Get exchange rate for conversion
+      try {
+        _exchangeRate =
+            await CurrencyService.getExchangeRate(_previousCurrency, _currency);
+        print(
+            '💱 SettingsProvider: Exchange rate from $_previousCurrency to $value: $_exchangeRate');
+      } catch (e) {
+        print('💱 SettingsProvider: Error getting exchange rate: $e');
+        _exchangeRate = 1.0;
+      }
+
+      await _prefs.setString('currency', value);
+      await _prefs.setString('previousCurrency', _previousCurrency);
+      await _prefs.setDouble('exchangeRate', _exchangeRate);
+
+      if (_uid != null) {
+        await _firestoreDataSource.updateSettings(_uid!, {
+          'currency': value,
+          'previousCurrency': _previousCurrency,
+          'exchangeRate': _exchangeRate,
+        });
+      }
+      notifyListeners();
     }
-    notifyListeners();
+  }
+
+  /// Convert all expenses to new currency (called from UI)
+  Future<void> convertExpensesToNewCurrency() async {
+    if (_previousCurrency != _currency) {
+      // This will be called from the UI when user confirms currency change
+      print(
+          '💱 SettingsProvider: Converting expenses from $_previousCurrency to $_currency');
+    }
   }
 
   Future<void> setUserName(String value) async {
@@ -167,6 +206,18 @@ class SettingsProvider with ChangeNotifier {
       await _firestoreDataSource.updateSettings(_uid!, {'yearlyLimit': value});
     }
     notifyListeners();
+  }
+
+  /// Convert amount using current exchange rate
+  double convertAmount(double amount) {
+    return amount * _exchangeRate;
+  }
+
+  /// Get formatted amount with currency symbol
+  String getFormattedAmount(double amount) {
+    final convertedAmount = convertAmount(amount);
+    final symbol = CurrencyService.getCurrencySymbol(_currency);
+    return '$symbol${convertedAmount.toStringAsFixed(2)}';
   }
 
   AlertStatus getAlertStatus(double currentAmount, double limit) {

@@ -4,6 +4,7 @@ import 'package:currency_picker/currency_picker.dart';
 import '../providers/settings_provider.dart';
 import '../auth/auth_repo.dart';
 import '../auth/auth_gate.dart';
+import '../providers/expense_provider.dart';
 
 class ProfileScreen extends StatefulWidget {
   const ProfileScreen({super.key});
@@ -184,6 +185,13 @@ class _ProfileScreenState extends State<ProfileScreen>
                               Icons.attach_money,
                               () => _showCurrencyPicker(context, settings),
                             ),
+                            if (settings.previousCurrency != settings.currency)
+                              _buildExchangeRateTile(
+                                context,
+                                settings.previousCurrency,
+                                settings.currency,
+                                settings.exchangeRate,
+                              ),
                             _buildLimitTile(
                               context,
                               'Thu nhập hàng tháng',
@@ -446,6 +454,52 @@ class _ProfileScreenState extends State<ProfileScreen>
     );
   }
 
+  Widget _buildExchangeRateTile(
+    BuildContext context,
+    String fromCurrency,
+    String toCurrency,
+    double exchangeRate,
+  ) {
+    return Container(
+      margin: const EdgeInsets.symmetric(vertical: 4),
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: Colors.blue.shade50,
+        borderRadius: BorderRadius.circular(8),
+        border: Border.all(color: Colors.blue.shade200),
+      ),
+      child: Row(
+        children: [
+          Icon(Icons.currency_exchange, color: Colors.blue.shade600, size: 20),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  'Tỉ giá hiện tại',
+                  style: TextStyle(
+                    fontWeight: FontWeight.bold,
+                    color: Colors.blue.shade700,
+                    fontSize: 12,
+                  ),
+                ),
+                const SizedBox(height: 2),
+                Text(
+                  '1 $fromCurrency = ${exchangeRate.toStringAsFixed(4)} $toCurrency',
+                  style: TextStyle(
+                    color: Colors.blue.shade600,
+                    fontSize: 14,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
   Widget _buildSwitchTile(
     String title,
     String subtitle,
@@ -569,10 +623,111 @@ class _ProfileScreenState extends State<ProfileScreen>
   void _showCurrencyPicker(BuildContext context, SettingsProvider settings) {
     showCurrencyPicker(
       context: context,
-      onSelect: (Currency currency) {
-        settings.setCurrency(currency.code);
+      onSelect: (Currency currency) async {
+        if (settings.currency != currency.code) {
+          // Show confirmation dialog for currency conversion
+          final shouldConvert = await _showCurrencyConversionDialog(
+            context,
+            settings.currency,
+            currency.code,
+            settings.exchangeRate,
+          );
+
+          if (shouldConvert) {
+            await settings.setCurrency(currency.code);
+            // Convert expenses to new currency
+            final expenseProvider =
+                Provider.of<ExpenseProvider>(context, listen: false);
+            await expenseProvider.convertExpensesToCurrency(
+              settings.previousCurrency,
+              currency.code,
+            );
+
+            if (context.mounted) {
+              ScaffoldMessenger.of(context).showSnackBar(
+                SnackBar(
+                  content: Text(
+                      '✅ Đã chuyển đổi tỉ giá từ ${settings.previousCurrency} sang ${currency.code}'),
+                  backgroundColor: Colors.green,
+                ),
+              );
+            }
+          }
+        }
       },
     );
+  }
+
+  Future<bool> _showCurrencyConversionDialog(
+    BuildContext context,
+    String fromCurrency,
+    String toCurrency,
+    double exchangeRate,
+  ) async {
+    return await showDialog<bool>(
+          context: context,
+          builder: (context) => AlertDialog(
+            title: const Text('Chuyển đổi tỉ giá'),
+            content: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Text(
+                    'Bạn có muốn chuyển đổi tất cả chi tiêu từ $fromCurrency sang $toCurrency?'),
+                const SizedBox(height: 16),
+                Container(
+                  padding: const EdgeInsets.all(12),
+                  decoration: BoxDecoration(
+                    color: Colors.blue.shade50,
+                    borderRadius: BorderRadius.circular(8),
+                    border: Border.all(color: Colors.blue.shade200),
+                  ),
+                  child: Column(
+                    children: [
+                      Text(
+                        'Tỉ giá hiện tại',
+                        style: TextStyle(
+                          fontWeight: FontWeight.bold,
+                          color: Colors.blue.shade700,
+                        ),
+                      ),
+                      const SizedBox(height: 4),
+                      Text(
+                        '1 $fromCurrency = ${exchangeRate.toStringAsFixed(4)} $toCurrency',
+                        style: TextStyle(
+                          fontSize: 16,
+                          color: Colors.blue.shade600,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                const SizedBox(height: 8),
+                Text(
+                  'Tất cả số tiền trong chi tiêu sẽ được chuyển đổi theo tỉ giá này.',
+                  style: TextStyle(
+                    fontSize: 12,
+                    color: Colors.grey.shade600,
+                  ),
+                ),
+              ],
+            ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(context, false),
+                child: const Text('Hủy'),
+              ),
+              ElevatedButton(
+                onPressed: () => Navigator.pop(context, true),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: Colors.blue,
+                  foregroundColor: Colors.white,
+                ),
+                child: const Text('Chuyển đổi'),
+              ),
+            ],
+          ),
+        ) ??
+        false;
   }
 
   void _showUsernameDialog(BuildContext context, SettingsProvider settings) {

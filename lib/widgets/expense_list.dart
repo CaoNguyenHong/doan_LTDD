@@ -3,6 +3,7 @@ import 'package:provider/provider.dart';
 import 'package:spend_sage/hive/expense.dart';
 import 'package:spend_sage/utilities/utilities.dart';
 import '../providers/expense_provider.dart';
+import '../providers/settings_provider.dart';
 
 class ExpenseList extends StatelessWidget {
   final List<Expense> expenses;
@@ -17,56 +18,78 @@ class ExpenseList extends StatelessWidget {
       );
     }
 
-    return Column(
-      children: expenses.map((expense) {
-        return Dismissible(
-          key: Key(expense.id),
-          background: Container(
-            color: Colors.red,
-            alignment: Alignment.centerRight,
-            padding: const EdgeInsets.only(right: 16),
-            child: const Icon(Icons.delete, color: Colors.white),
-          ),
-          direction: DismissDirection.endToStart,
-          onDismissed: (direction) {
-            Provider.of<ExpenseProvider>(context, listen: false)
-                .deleteExpense(expense.id);
-          },
-          child: ListTile(
-            leading: CircleAvatar(
-              backgroundColor: Theme.of(context).colorScheme.primary,
-              child: Icon(
-                _getCategoryIcon(expense.category),
-                color: Colors.white,
+    return Consumer<SettingsProvider>(
+      builder: (context, settings, _) {
+        return Column(
+          children: expenses.map((expense) {
+            return Dismissible(
+              key: Key(expense.id),
+              background: Container(
+                decoration: BoxDecoration(
+                  color: Colors.red.shade500,
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                alignment: Alignment.centerRight,
+                padding: const EdgeInsets.only(right: 20),
+                child: Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    const Icon(Icons.delete, color: Colors.white, size: 24),
+                    const SizedBox(height: 4),
+                    Text(
+                      'Xóa',
+                      style: TextStyle(
+                        color: Colors.white,
+                        fontSize: 12,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                  ],
+                ),
               ),
-            ),
-            title: Text(
-              expense.description,
-              style: const TextStyle(
-                color: Colors.black,
-                fontSize: 16,
-                fontWeight: FontWeight.w500,
+              direction: DismissDirection.endToStart,
+              confirmDismiss: (direction) async {
+                // Show confirmation dialog instead of auto-dismiss
+                _showDeleteConfirmation(context, expense);
+                return false; // Don't auto-dismiss
+              },
+              child: ListTile(
+                leading: CircleAvatar(
+                  backgroundColor: Theme.of(context).colorScheme.primary,
+                  child: Icon(
+                    _getCategoryIcon(expense.category),
+                    color: Colors.white,
+                  ),
+                ),
+                title: Text(
+                  expense.description,
+                  style: const TextStyle(
+                    color: Colors.black,
+                    fontSize: 16,
+                    fontWeight: FontWeight.w500,
+                  ),
+                ),
+                subtitle: Text(
+                  '${_getCategoryDisplayName(expense.category)} • ${_formatDate(expense.dateTime)}',
+                  style: TextStyle(
+                    color: Colors.grey.shade600,
+                    fontSize: 14,
+                  ),
+                ),
+                trailing: Text(
+                  '${settings.currency}${expense.amount.toStringAsFixed(2)}',
+                  style: const TextStyle(
+                    color: Colors.black,
+                    fontSize: 16,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+                onTap: () => _showEditDialog(context, expense),
               ),
-            ),
-            subtitle: Text(
-              '${_getCategoryDisplayName(expense.category)} • ${_formatDate(expense.dateTime)}',
-              style: TextStyle(
-                color: Colors.grey.shade600,
-                fontSize: 14,
-              ),
-            ),
-            trailing: Text(
-              '\$${expense.amount.toStringAsFixed(2)}',
-              style: const TextStyle(
-                color: Colors.black,
-                fontSize: 16,
-                fontWeight: FontWeight.bold,
-              ),
-            ),
-            onTap: () => _showEditDialog(context, expense),
-          ),
+            );
+          }).toList(),
         );
-      }).toList(),
+      },
     );
   }
 
@@ -92,8 +115,30 @@ class ExpenseList extends StatelessWidget {
                 color: Colors.black,
                 fontSize: 16,
               ),
-              decoration: const InputDecoration(
+              decoration: InputDecoration(
                 labelText: 'Mô tả',
+                labelStyle: const TextStyle(color: Colors.black87),
+                hintText: 'Nhập mô tả chi tiêu...',
+                hintStyle: TextStyle(color: Colors.grey.shade600),
+                prefixIcon:
+                    const Icon(Icons.description_outlined, color: Colors.grey),
+                border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(12),
+                  borderSide: BorderSide(color: Colors.grey.shade300),
+                ),
+                enabledBorder: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(12),
+                  borderSide: BorderSide(color: Colors.grey.shade300),
+                ),
+                focusedBorder: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(12),
+                  borderSide: const BorderSide(
+                    color: Color(0xFF667eea),
+                    width: 2,
+                  ),
+                ),
+                filled: true,
+                fillColor: Colors.grey.shade50,
               ),
             ),
             const SizedBox(height: 16),
@@ -103,18 +148,63 @@ class ExpenseList extends StatelessWidget {
                 color: Colors.black,
                 fontSize: 16,
               ),
-              decoration: const InputDecoration(
+              decoration: InputDecoration(
                 labelText: 'Số tiền',
-                prefixText: '\$',
+                labelStyle: const TextStyle(color: Colors.black87),
+                hintText: 'Nhập số tiền...',
+                hintStyle: TextStyle(color: Colors.grey.shade600),
+                prefixIcon: const Icon(Icons.attach_money, color: Colors.grey),
+                border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(12),
+                  borderSide: BorderSide(color: Colors.grey.shade300),
+                ),
+                enabledBorder: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(12),
+                  borderSide: BorderSide(color: Colors.grey.shade300),
+                ),
+                focusedBorder: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(12),
+                  borderSide: const BorderSide(
+                    color: Color(0xFF667eea),
+                    width: 2,
+                  ),
+                ),
+                filled: true,
+                fillColor: Colors.grey.shade50,
               ),
               keyboardType: TextInputType.number,
             ),
             const SizedBox(height: 16),
             DropdownButtonFormField<String>(
               initialValue: selectedCategory,
-              decoration: const InputDecoration(
-                labelText: 'Danh mục',
+              style: const TextStyle(
+                color: Colors.black,
+                fontSize: 16,
               ),
+              decoration: InputDecoration(
+                labelText: 'Danh mục',
+                labelStyle: const TextStyle(color: Colors.black87),
+                prefixIcon:
+                    const Icon(Icons.category_outlined, color: Colors.grey),
+                border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(12),
+                  borderSide: BorderSide(color: Colors.grey.shade300),
+                ),
+                enabledBorder: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(12),
+                  borderSide: BorderSide(color: Colors.grey.shade300),
+                ),
+                focusedBorder: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(12),
+                  borderSide: const BorderSide(
+                    color: Color(0xFF667eea),
+                    width: 2,
+                  ),
+                ),
+                filled: true,
+                fillColor: Colors.grey.shade50,
+              ),
+              dropdownColor: Colors.white,
               items: [
                 'food',
                 'transport',
@@ -127,7 +217,10 @@ class ExpenseList extends StatelessWidget {
               ].map((String category) {
                 return DropdownMenuItem(
                   value: category,
-                  child: Text(_getCategoryDisplayName(category)),
+                  child: Text(
+                    _getCategoryDisplayName(category),
+                    style: const TextStyle(color: Colors.black),
+                  ),
                 );
               }).toList(),
               onChanged: (String? value) {
@@ -140,11 +233,40 @@ class ExpenseList extends StatelessWidget {
         ),
       ),
       actions: [
+        // Delete button
+        TextButton.icon(
+          onPressed: () async {
+            Navigator.pop(context); // Close edit dialog
+            _showDeleteConfirmation(context, expense);
+          },
+          style: TextButton.styleFrom(
+            foregroundColor: Colors.red,
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+          ),
+          icon: const Icon(Icons.delete_outline, size: 18),
+          label: const Text('Xóa'),
+        ),
+        const SizedBox(width: 8),
+        // Cancel button
         TextButton(
           onPressed: () => Navigator.pop(context),
+          style: TextButton.styleFrom(
+            foregroundColor: Colors.grey.shade600,
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+          ),
           child: const Text('Hủy'),
         ),
-        FilledButton(
+        const SizedBox(width: 8),
+        // Save button
+        ElevatedButton(
+          style: ElevatedButton.styleFrom(
+            backgroundColor: const Color(0xFF667eea),
+            foregroundColor: Colors.white,
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(8),
+            ),
+          ),
           onPressed: () async {
             final expenseProvider = context.read<ExpenseProvider>();
             final double? amount = double.tryParse(amountController.text);
@@ -167,6 +289,12 @@ class ExpenseList extends StatelessWidget {
               if (context.mounted) {
                 // Close the dialog
                 Navigator.pop(context);
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(
+                    content: Text('✅ Đã cập nhật chi tiêu thành công!'),
+                    backgroundColor: Colors.green,
+                  ),
+                );
               }
             }
           },
@@ -259,21 +387,21 @@ class ExpenseList extends StatelessWidget {
   String _getCategoryDisplayName(String category) {
     switch (category.toLowerCase()) {
       case 'food':
-        return '🍽️ Ăn uống';
+        return 'Ăn uống';
       case 'transport':
-        return '🚗 Giao thông';
+        return 'Giao thông';
       case 'utilities':
-        return '⚡ Tiện ích';
+        return 'Tiện ích';
       case 'health':
-        return '🏥 Sức khỏe';
+        return 'Sức khỏe';
       case 'education':
-        return '📚 Giáo dục';
+        return 'Giáo dục';
       case 'shopping':
-        return '🛍️ Mua sắm';
+        return 'Mua sắm';
       case 'entertainment':
-        return '🎬 Giải trí';
+        return 'Giải trí';
       default:
-        return '📦 Khác';
+        return 'Khác';
     }
   }
 
@@ -296,5 +424,107 @@ class ExpenseList extends StatelessWidget {
       default:
         return Icons.attach_money;
     }
+  }
+
+  void _showDeleteConfirmation(BuildContext context, Expense expense) {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Xóa chi tiêu'),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text('Bạn có chắc chắn muốn xóa chi tiêu này?'),
+            const SizedBox(height: 12),
+            Container(
+              padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                color: Colors.grey.shade100,
+                borderRadius: BorderRadius.circular(8),
+                border: Border.all(color: Colors.grey.shade300),
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    expense.description,
+                    style: const TextStyle(
+                      fontWeight: FontWeight.bold,
+                      fontSize: 16,
+                    ),
+                  ),
+                  const SizedBox(height: 4),
+                  Text(
+                    '${_getCategoryDisplayName(expense.category)} • ${_formatDate(expense.dateTime)}',
+                    style: TextStyle(
+                      color: Colors.grey.shade600,
+                      fontSize: 14,
+                    ),
+                  ),
+                  const SizedBox(height: 4),
+                  Text(
+                    '${expense.amount.toStringAsFixed(2)}',
+                    style: TextStyle(
+                      color: Colors.red.shade600,
+                      fontSize: 16,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(height: 8),
+            Text(
+              'Hành động này không thể hoàn tác.',
+              style: TextStyle(
+                color: Colors.red.shade600,
+                fontSize: 12,
+                fontWeight: FontWeight.w500,
+              ),
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('Hủy'),
+          ),
+          ElevatedButton(
+            onPressed: () async {
+              Navigator.pop(context);
+              await Provider.of<ExpenseProvider>(context, listen: false)
+                  .deleteExpense(expense.id);
+
+              if (context.mounted) {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  SnackBar(
+                    content: const Text('✅ Đã xóa chi tiêu thành công!'),
+                    backgroundColor: Colors.green,
+                    action: SnackBarAction(
+                      label: 'Hoàn tác',
+                      textColor: Colors.white,
+                      onPressed: () {
+                        // TODO: Implement undo functionality
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          const SnackBar(
+                            content: Text('Tính năng hoàn tác đang phát triển'),
+                          ),
+                        );
+                      },
+                    ),
+                  ),
+                );
+              }
+            },
+            style: ElevatedButton.styleFrom(
+              backgroundColor: Colors.red,
+              foregroundColor: Colors.white,
+            ),
+            child: const Text('Xóa'),
+          ),
+        ],
+      ),
+    );
   }
 }

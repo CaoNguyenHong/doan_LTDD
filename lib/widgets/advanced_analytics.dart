@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:fl_chart/fl_chart.dart';
 import 'package:spend_sage/hive/expense.dart';
+import 'package:provider/provider.dart';
+import '../providers/settings_provider.dart';
 
 class AdvancedAnalytics extends StatefulWidget {
   final List<Expense> expenses;
@@ -15,18 +17,26 @@ class _AdvancedAnalyticsState extends State<AdvancedAnalytics>
     with TickerProviderStateMixin {
   late AnimationController _animationController;
   late Animation<double> _fadeAnimation;
+  late Animation<Offset> _slideAnimation;
   String _selectedMetric = 'spending';
 
   @override
   void initState() {
     super.initState();
     _animationController = AnimationController(
-      duration: const Duration(milliseconds: 1000),
       vsync: this,
+      duration: const Duration(milliseconds: 800),
     );
     _fadeAnimation = Tween<double>(begin: 0.0, end: 1.0).animate(
       CurvedAnimation(parent: _animationController, curve: Curves.easeOut),
     );
+    _slideAnimation = Tween<Offset>(
+      begin: const Offset(0, 0.3),
+      end: Offset.zero,
+    ).animate(CurvedAnimation(
+      parent: _animationController,
+      curve: Curves.easeOut,
+    ));
     _animationController.forward();
   }
 
@@ -38,67 +48,87 @@ class _AdvancedAnalyticsState extends State<AdvancedAnalytics>
 
   @override
   Widget build(BuildContext context) {
-    final analytics = _calculateAnalytics();
+    return Consumer<SettingsProvider>(
+      builder: (context, settings, _) {
+        final analytics = _calculateAnalytics();
+        final currency = settings.currency;
 
-    return Container(
-      decoration: BoxDecoration(
-        gradient: LinearGradient(
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-          colors: [
-            Colors.white,
-            Colors.grey.shade50,
-          ],
-        ),
-        borderRadius: BorderRadius.circular(20),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withOpacity(0.1),
-            blurRadius: 20,
-            offset: const Offset(0, 10),
-          ),
-        ],
-      ),
-      child: Padding(
-        padding: const EdgeInsets.all(24),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            // Header
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                Text(
-                  'Phân tích nâng cao',
-                  style: Theme.of(context).textTheme.headlineSmall?.copyWith(
-                        fontWeight: FontWeight.bold,
-                        color: const Color(0xFF2D3748),
-                      ),
-                ),
-                _buildMetricSelector(),
+        return Container(
+          decoration: BoxDecoration(
+            gradient: LinearGradient(
+              begin: Alignment.topLeft,
+              end: Alignment.bottomRight,
+              colors: [
+                Colors.white,
+                Colors.grey.shade50,
               ],
             ),
-            const SizedBox(height: 24),
-
-            // Key Metrics
-            _buildKeyMetrics(analytics),
-            const SizedBox(height: 24),
-
-            // Trend Chart
-            SizedBox(
-              height: 200,
-              child: FadeTransition(
-                opacity: _fadeAnimation,
-                child: _buildTrendChart(analytics),
+            borderRadius: BorderRadius.circular(20),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withOpacity(0.1),
+                blurRadius: 20,
+                offset: const Offset(0, 10),
               ),
-            ),
+            ],
+          ),
+          child: Padding(
+            padding: const EdgeInsets.all(24),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                // Header
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            'Phân tích nâng cao',
+                            style: Theme.of(context)
+                                .textTheme
+                                .headlineSmall
+                                ?.copyWith(
+                                  fontWeight: FontWeight.bold,
+                                  color: const Color(0xFF2D3748),
+                                ),
+                          ),
+                          const SizedBox(height: 4),
+                          Text(
+                            'Thống kê chi tiết về chi tiêu',
+                            style: Theme.of(context)
+                                .textTheme
+                                .titleMedium
+                                ?.copyWith(
+                                  color: Colors.grey.shade600,
+                                  fontWeight: FontWeight.w500,
+                                ),
+                          ),
+                        ],
+                      ),
+                    ),
+                    _buildMetricSelector(),
+                  ],
+                ),
+                const SizedBox(height: 24),
 
-            // Insights
-            const SizedBox(height: 20),
-            _buildInsights(analytics),
-          ],
-        ),
-      ),
+                // Key Metrics
+                _buildKeyMetrics(analytics, currency),
+                const SizedBox(height: 24),
+
+                // Trend Chart
+                _buildTrendChart(analytics, currency),
+                const SizedBox(height: 24),
+
+                // Insights
+                _buildInsights(analytics, currency),
+              ],
+            ),
+          ),
+        );
+      },
     );
   }
 
@@ -113,35 +143,37 @@ class _AdvancedAnalyticsState extends State<AdvancedAnalytics>
         child: DropdownButton<String>(
           value: _selectedMetric,
           isDense: true,
-          style: TextStyle(
-            color: Colors.grey.shade700,
-            fontSize: 12,
-            fontWeight: FontWeight.w500,
-          ),
           items: const [
-            DropdownMenuItem(value: 'spending', child: Text('Chi tiêu')),
-            DropdownMenuItem(value: 'frequency', child: Text('Tần suất')),
-            DropdownMenuItem(value: 'average', child: Text('Trung bình')),
+            DropdownMenuItem(
+              value: 'spending',
+              child: Text('Chi tiêu'),
+            ),
+            DropdownMenuItem(
+              value: 'transactions',
+              child: Text('Giao dịch'),
+            ),
+            DropdownMenuItem(
+              value: 'categories',
+              child: Text('Danh mục'),
+            ),
           ],
           onChanged: (value) {
-            if (value != null) {
-              setState(() {
-                _selectedMetric = value;
-              });
-            }
+            setState(() {
+              _selectedMetric = value!;
+            });
           },
         ),
       ),
     );
   }
 
-  Widget _buildKeyMetrics(AnalyticsData analytics) {
+  Widget _buildKeyMetrics(AnalyticsData analytics, String currency) {
     return Row(
       children: [
         Expanded(
           child: _buildMetricCard(
             'Tổng chi tiêu',
-            '\$${analytics.totalSpending.toStringAsFixed(2)}',
+            '$currency${analytics.totalSpending.toStringAsFixed(2)}',
             Icons.attach_money,
             const Color(0xFF667eea),
             analytics.spendingTrend,
@@ -150,18 +182,8 @@ class _AdvancedAnalyticsState extends State<AdvancedAnalytics>
         const SizedBox(width: 12),
         Expanded(
           child: _buildMetricCard(
-            'Số giao dịch',
-            '${analytics.totalTransactions}',
-            Icons.receipt_long,
-            const Color(0xFF48BB78),
-            analytics.transactionTrend,
-          ),
-        ),
-        const SizedBox(width: 12),
-        Expanded(
-          child: _buildMetricCard(
             'Trung bình',
-            '\$${analytics.averageTransaction.toStringAsFixed(2)}',
+            '$currency${analytics.averageTransaction.toStringAsFixed(2)}',
             Icons.trending_up,
             const Color(0xFFED8936),
             analytics.averageTrend,
@@ -172,13 +194,20 @@ class _AdvancedAnalyticsState extends State<AdvancedAnalytics>
   }
 
   Widget _buildMetricCard(
-      String title, String value, IconData icon, Color color, double trend) {
+      String title, String value, IconData icon, Color color, String trend) {
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: color.withOpacity(0.1),
+        color: Colors.white,
         borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: color.withOpacity(0.3)),
+        border: Border.all(color: Colors.grey.shade200),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.05),
+            blurRadius: 8,
+            offset: const Offset(0, 2),
+          ),
+        ],
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -186,30 +215,34 @@ class _AdvancedAnalyticsState extends State<AdvancedAnalytics>
           Row(
             children: [
               Icon(icon, color: color, size: 20),
-              const Spacer(),
-              Icon(
-                trend > 0 ? Icons.trending_up : Icons.trending_down,
-                color: trend > 0 ? Colors.green : Colors.red,
-                size: 16,
+              const SizedBox(width: 8),
+              Expanded(
+                child: Text(
+                  title,
+                  style: TextStyle(
+                    color: Colors.grey.shade600,
+                    fontSize: 12,
+                    fontWeight: FontWeight.w500,
+                  ),
+                ),
               ),
             ],
           ),
           const SizedBox(height: 8),
           Text(
-            title,
+            value,
             style: TextStyle(
-              color: Colors.grey.shade600,
-              fontSize: 11,
-              fontWeight: FontWeight.w500,
+              color: color,
+              fontSize: 18,
+              fontWeight: FontWeight.bold,
             ),
           ),
           const SizedBox(height: 4),
           Text(
-            value,
+            trend,
             style: TextStyle(
-              color: color,
-              fontSize: 16,
-              fontWeight: FontWeight.bold,
+              color: Colors.grey.shade500,
+              fontSize: 10,
             ),
           ),
         ],
@@ -217,7 +250,7 @@ class _AdvancedAnalyticsState extends State<AdvancedAnalytics>
     );
   }
 
-  Widget _buildTrendChart(AnalyticsData analytics) {
+  Widget _buildTrendChart(AnalyticsData analytics, String currency) {
     return Container(
       height: 200,
       padding: const EdgeInsets.all(16),
@@ -265,7 +298,7 @@ class _AdvancedAnalyticsState extends State<AdvancedAnalytics>
                 showTitles: true,
                 getTitlesWidget: (value, meta) {
                   return Text(
-                    '\$${value.toInt()}',
+                    '$currency${value.toInt()}',
                     style: TextStyle(
                       color: Colors.grey.shade600,
                       fontSize: 10,
@@ -282,25 +315,22 @@ class _AdvancedAnalyticsState extends State<AdvancedAnalytics>
               sideTitles: SideTitles(showTitles: false),
             ),
           ),
-          borderData: FlBorderData(show: false),
+          borderData: FlBorderData(
+            show: true,
+            border: Border.all(color: Colors.grey.shade200),
+          ),
           lineBarsData: [
             LineChartBarData(
-              spots: _createLineSpots(analytics),
+              spots: analytics.dailyData
+                  .asMap()
+                  .entries
+                  .map((e) => FlSpot(e.key.toDouble(), e.value))
+                  .toList(),
               isCurved: true,
               color: const Color(0xFF667eea),
               barWidth: 3,
               isStrokeCapRound: true,
-              dotData: FlDotData(
-                show: true,
-                getDotPainter: (spot, percent, barData, index) {
-                  return FlDotCirclePainter(
-                    radius: 4,
-                    color: const Color(0xFF667eea),
-                    strokeWidth: 2,
-                    strokeColor: Colors.white,
-                  );
-                },
-              ),
+              dotData: FlDotData(show: false),
               belowBarData: BarAreaData(
                 show: true,
                 color: const Color(0xFF667eea).withOpacity(0.1),
@@ -312,41 +342,42 @@ class _AdvancedAnalyticsState extends State<AdvancedAnalytics>
     );
   }
 
-  Widget _buildInsights(AnalyticsData analytics) {
+  Widget _buildInsights(AnalyticsData analytics, String currency) {
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: Colors.blue.shade50,
+        color: Colors.white,
         borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: Colors.blue.shade200),
+        border: Border.all(color: Colors.grey.shade200),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.05),
+            blurRadius: 8,
+            offset: const Offset(0, 2),
+          ),
+        ],
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Row(
-            children: [
-              Icon(Icons.lightbulb, color: Colors.blue.shade600, size: 20),
-              const SizedBox(width: 8),
-              Text(
-                'Thông tin chi tiết',
-                style: TextStyle(
-                  color: Colors.blue.shade800,
-                  fontWeight: FontWeight.bold,
-                  fontSize: 14,
-                ),
-              ),
-            ],
+          Text(
+            'Thông tin chi tiết',
+            style: TextStyle(
+              fontWeight: FontWeight.bold,
+              fontSize: 16,
+              color: Colors.grey.shade800,
+            ),
           ),
           const SizedBox(height: 12),
           _buildInsightRow(
             'Chi tiêu cao nhất trong ngày',
-            '\$${analytics.highestDailySpending.toStringAsFixed(2)}',
+            '$currency${analytics.highestDailySpending.toStringAsFixed(2)}',
             Icons.trending_up,
             Colors.red,
           ),
           _buildInsightRow(
             'Chi tiêu thấp nhất trong ngày',
-            '\$${analytics.lowestDailySpending.toStringAsFixed(2)}',
+            '$currency${analytics.lowestDailySpending.toStringAsFixed(2)}',
             Icons.trending_down,
             Colors.green,
           ),
@@ -393,74 +424,96 @@ class _AdvancedAnalyticsState extends State<AdvancedAnalytics>
 
   AnalyticsData _calculateAnalytics() {
     final now = DateTime.now();
-    final thirtyDaysAgo = now.subtract(const Duration(days: 30));
+    final expenses = widget.expenses;
 
-    final recentExpenses = widget.expenses
-        .where((expense) => expense.dateTime.isAfter(thirtyDaysAgo))
-        .toList();
-
-    final totalSpending =
-        recentExpenses.fold(0.0, (sum, expense) => sum + expense.amount);
-
-    final totalTransactions = recentExpenses.length;
-    final averageTransaction =
-        totalTransactions > 0 ? totalSpending / totalTransactions : 0.0;
-
-    // Calculate daily spending for the last 30 days
-    final dailyData = <double>[];
-    for (int i = 29; i >= 0; i--) {
-      final date = now.subtract(Duration(days: i));
-      final dayExpenses = recentExpenses
-          .where((expense) =>
-              expense.dateTime.year == date.year &&
-              expense.dateTime.month == date.month &&
-              expense.dateTime.day == date.day)
-          .toList();
-      dailyData
-          .add(dayExpenses.fold(0.0, (sum, expense) => sum + expense.amount));
+    if (expenses.isEmpty) {
+      return AnalyticsData(
+        totalSpending: 0,
+        averageTransaction: 0,
+        highestDailySpending: 0,
+        lowestDailySpending: 0,
+        dailyData: [],
+        spendingTrend: 'Không có dữ liệu',
+        averageTrend: 'Không có dữ liệu',
+      );
     }
 
-    // Calculate trends (simplified)
-    final spendingTrend = _calculateTrend(dailyData);
-    final transactionTrend = spendingTrend; // Simplified
-    final averageTrend = spendingTrend; // Simplified
+    // Calculate total spending
+    final totalSpending =
+        expenses.fold(0.0, (sum, expense) => sum + expense.amount);
 
-    // Find highest and lowest daily spending
-    final highestDailySpending =
-        dailyData.isNotEmpty ? dailyData.reduce((a, b) => a > b ? a : b) : 0.0;
-    final lowestDailySpending =
-        dailyData.isNotEmpty ? dailyData.reduce((a, b) => a < b ? a : b) : 0.0;
+    // Calculate average transaction
+    final averageTransaction = totalSpending / expenses.length;
+
+    // Calculate daily spending for the last 7 days
+    final dailyData = <double>[];
+    for (int i = 6; i >= 0; i--) {
+      final date = now.subtract(Duration(days: i));
+      final dayExpenses = expenses.where((expense) {
+        return expense.dateTime.year == date.year &&
+            expense.dateTime.month == date.month &&
+            expense.dateTime.day == date.day;
+      });
+      final dayTotal =
+          dayExpenses.fold(0.0, (sum, expense) => sum + expense.amount);
+      dailyData.add(dayTotal);
+    }
+
+    // Calculate highest and lowest daily spending
+    final highestDailySpending = dailyData.reduce((a, b) => a > b ? a : b);
+    final lowestDailySpending = dailyData.reduce((a, b) => a < b ? a : b);
+
+    // Calculate trends
+    final spendingTrend = _calculateSpendingTrend(dailyData);
+    final averageTrend = _calculateAverageTrend(expenses);
 
     return AnalyticsData(
       totalSpending: totalSpending,
-      totalTransactions: totalTransactions,
       averageTransaction: averageTransaction,
-      spendingTrend: spendingTrend,
-      transactionTrend: transactionTrend,
-      averageTrend: averageTrend,
-      dailyData: dailyData,
       highestDailySpending: highestDailySpending,
       lowestDailySpending: lowestDailySpending,
+      dailyData: dailyData,
+      spendingTrend: spendingTrend,
+      averageTrend: averageTrend,
     );
   }
 
-  double _calculateTrend(List<double> data) {
-    if (data.length < 2) return 0.0;
-    final firstHalf = data.take(data.length ~/ 2).fold(0.0, (a, b) => a + b);
-    final secondHalf = data.skip(data.length ~/ 2).fold(0.0, (a, b) => a + b);
-    return secondHalf > firstHalf ? 1.0 : -1.0;
+  String _calculateSpendingTrend(List<double> dailyData) {
+    if (dailyData.length < 2) return 'Không đủ dữ liệu';
+
+    final firstHalf =
+        dailyData.take(3).fold(0.0, (sum, value) => sum + value) / 3;
+    final secondHalf =
+        dailyData.skip(4).fold(0.0, (sum, value) => sum + value) / 3;
+
+    if (secondHalf > firstHalf * 1.1) return 'Tăng mạnh';
+    if (secondHalf > firstHalf * 1.05) return 'Tăng nhẹ';
+    if (secondHalf < firstHalf * 0.9) return 'Giảm mạnh';
+    if (secondHalf < firstHalf * 0.95) return 'Giảm nhẹ';
+    return 'Ổn định';
   }
 
-  double _calculateMaxY(AnalyticsData analytics) {
-    if (analytics.dailyData.isEmpty) return 100;
-    final max = analytics.dailyData.reduce((a, b) => a > b ? a : b);
-    return (max * 1.2).ceilToDouble();
-  }
+  String _calculateAverageTrend(List<Expense> expenses) {
+    if (expenses.length < 2) return 'Không đủ dữ liệu';
 
-  List<FlSpot> _createLineSpots(AnalyticsData analytics) {
-    return analytics.dailyData.asMap().entries.map((entry) {
-      return FlSpot(entry.key.toDouble(), entry.value);
-    }).toList();
+    final sortedExpenses = List<Expense>.from(expenses)
+      ..sort((a, b) => a.dateTime.compareTo(b.dateTime));
+
+    final firstHalf = sortedExpenses.take(expenses.length ~/ 2);
+    final secondHalf = sortedExpenses.skip(expenses.length ~/ 2);
+
+    final firstAvg =
+        firstHalf.fold(0.0, (sum, expense) => sum + expense.amount) /
+            firstHalf.length;
+    final secondAvg =
+        secondHalf.fold(0.0, (sum, expense) => sum + expense.amount) /
+            secondHalf.length;
+
+    if (secondAvg > firstAvg * 1.1) return 'Tăng mạnh';
+    if (secondAvg > firstAvg * 1.05) return 'Tăng nhẹ';
+    if (secondAvg < firstAvg * 0.9) return 'Giảm mạnh';
+    if (secondAvg < firstAvg * 0.95) return 'Giảm nhẹ';
+    return 'Ổn định';
   }
 
   String _getTopCategory(AnalyticsData analytics) {
@@ -484,38 +537,44 @@ class _AdvancedAnalyticsState extends State<AdvancedAnalytics>
         return 'Ăn uống';
       case 'transport':
         return 'Giao thông';
-      case 'shopping':
-        return 'Mua sắm';
       case 'utilities':
         return 'Tiện ích';
+      case 'health':
+        return 'Sức khỏe';
+      case 'education':
+        return 'Giáo dục';
+      case 'shopping':
+        return 'Mua sắm';
       case 'entertainment':
         return 'Giải trí';
       default:
         return 'Khác';
     }
   }
+
+  double _calculateMaxY(AnalyticsData analytics) {
+    if (analytics.dailyData.isEmpty) return 100;
+    final max = analytics.dailyData.reduce((a, b) => a > b ? a : b);
+    return (max * 1.2).ceilToDouble();
+  }
 }
 
 class AnalyticsData {
   final double totalSpending;
-  final int totalTransactions;
   final double averageTransaction;
-  final double spendingTrend;
-  final double transactionTrend;
-  final double averageTrend;
-  final List<double> dailyData;
   final double highestDailySpending;
   final double lowestDailySpending;
+  final List<double> dailyData;
+  final String spendingTrend;
+  final String averageTrend;
 
   AnalyticsData({
     required this.totalSpending,
-    required this.totalTransactions,
     required this.averageTransaction,
-    required this.spendingTrend,
-    required this.transactionTrend,
-    required this.averageTrend,
-    required this.dailyData,
     required this.highestDailySpending,
     required this.lowestDailySpending,
+    required this.dailyData,
+    required this.spendingTrend,
+    required this.averageTrend,
   });
 }

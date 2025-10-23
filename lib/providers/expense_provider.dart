@@ -6,6 +6,7 @@ import 'package:spend_sage/service/adaptive_expense_parser.dart';
 import 'package:spend_sage/service/expense_repo.dart';
 import 'package:spend_sage/data/firestore_data_source.dart';
 import 'package:spend_sage/data/firestore_expense_repo.dart';
+import 'package:spend_sage/service/currency_service.dart';
 import 'package:uuid/uuid.dart';
 
 class ExpenseProvider with ChangeNotifier {
@@ -55,6 +56,36 @@ class ExpenseProvider with ChangeNotifier {
     notifyListeners();
   }
 
+  /// Convert all expenses to new currency
+  Future<void> convertExpensesToCurrency(
+      String fromCurrency, String toCurrency) async {
+    if (fromCurrency == toCurrency) return;
+
+    try {
+      final exchangeRate =
+          await CurrencyService.getExchangeRate(fromCurrency, toCurrency);
+      print(
+          '💰 ExpenseProvider: Converting expenses from $fromCurrency to $toCurrency with rate: $exchangeRate');
+
+      for (var expense in _expenses) {
+        final convertedAmount = expense.amount * exchangeRate;
+        final updatedExpense = Expense(
+          id: expense.id,
+          category: expense.category,
+          amount: convertedAmount,
+          description: expense.description,
+          dateTime: expense.dateTime,
+        );
+        await _expenseRepo?.updateExpense(expense.id, updatedExpense);
+      }
+
+      print(
+          '💰 ExpenseProvider: Successfully converted ${_expenses.length} expenses');
+    } catch (e) {
+      print('💰 ExpenseProvider: Error converting expenses: $e');
+    }
+  }
+
   /// Legacy constructor for Hive (deprecated)
   ExpenseProvider({
     required dynamic
@@ -77,9 +108,11 @@ class ExpenseProvider with ChangeNotifier {
     _setLoading(true);
     try {
       await _expenseRepo!.deleteExpense(id);
+      print('💰 ExpenseProvider: Expense deleted successfully: $id');
       _error = '';
     } catch (e) {
-      _error = 'Failed to delete expense: $e';
+      print('💰 ExpenseProvider: Error deleting expense: $e');
+      _error = 'Không thể xóa chi tiêu: $e';
     }
     _setLoading(false);
   }
@@ -127,13 +160,22 @@ class ExpenseProvider with ChangeNotifier {
   /// Watch expenses from Firestore
   void _watchExpenses() {
     if (_expenseRepo == null) return;
+
+    print('💰 ExpenseProvider: Starting to watch expenses...');
+    _setLoading(true);
+
     _expenseRepo!.watchExpenses().listen(
       (expenses) {
+        print('💰 ExpenseProvider: Received ${expenses.length} expenses');
         _expenses = expenses;
+        _error = '';
+        _setLoading(false);
         notifyListeners();
       },
       onError: (error) {
-        _error = 'Failed to load expenses: $error';
+        print('💰 ExpenseProvider: Error watching expenses: $error');
+        _error = 'Không thể tải chi tiêu: $error';
+        _setLoading(false);
         notifyListeners();
       },
     );
@@ -147,6 +189,22 @@ class ExpenseProvider with ChangeNotifier {
       _error = '';
     } catch (e) {
       _error = 'Failed to load expenses: $e';
+    }
+    _setLoading(false);
+  }
+
+  /// Add expense directly without parsing
+  Future<void> addExpense(Expense expense) async {
+    print(
+        '💰 ExpenseProvider: Adding expense directly: ${expense.description}');
+    _setLoading(true);
+    try {
+      await _expenseRepo!.addExpense(expense);
+      print('💰 ExpenseProvider: Expense added successfully');
+      _error = '';
+    } catch (e) {
+      print('💰 ExpenseProvider: Error adding expense: $e');
+      _error = 'Không thể thêm chi tiêu: $e';
     }
     _setLoading(false);
   }

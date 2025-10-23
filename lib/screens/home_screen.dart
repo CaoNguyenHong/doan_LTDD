@@ -7,6 +7,8 @@ import 'package:spend_sage/widgets/total_amount_display.dart';
 import 'package:spend_sage/hive/expense.dart';
 import 'package:uuid/uuid.dart';
 import '../providers/expense_provider.dart';
+import '../providers/analytics_provider.dart';
+import '../providers/notification_provider.dart';
 import '../widgets/expense_list.dart';
 
 class HomeScreen extends StatefulWidget {
@@ -226,56 +228,56 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
                   DropdownMenuItem(
                     value: 'food',
                     child: Text(
-                      '🍽️ Ăn uống',
+                      'Ăn uống',
                       style: const TextStyle(color: Colors.black),
                     ),
                   ),
                   DropdownMenuItem(
                     value: 'transport',
                     child: Text(
-                      '🚗 Giao thông',
+                      'Giao thông',
                       style: const TextStyle(color: Colors.black),
                     ),
                   ),
                   DropdownMenuItem(
                     value: 'utilities',
                     child: Text(
-                      '⚡ Tiện ích',
+                      'Tiện ích',
                       style: const TextStyle(color: Colors.black),
                     ),
                   ),
                   DropdownMenuItem(
                     value: 'health',
                     child: Text(
-                      '🏥 Sức khỏe',
+                      'Sức khỏe',
                       style: const TextStyle(color: Colors.black),
                     ),
                   ),
                   DropdownMenuItem(
                     value: 'education',
                     child: Text(
-                      '📚 Giáo dục',
+                      'Giáo dục',
                       style: const TextStyle(color: Colors.black),
                     ),
                   ),
                   DropdownMenuItem(
                     value: 'shopping',
                     child: Text(
-                      '🛍️ Mua sắm',
+                      'Mua sắm',
                       style: const TextStyle(color: Colors.black),
                     ),
                   ),
                   DropdownMenuItem(
                     value: 'entertainment',
                     child: Text(
-                      '🎬 Giải trí',
+                      'Giải trí',
                       style: const TextStyle(color: Colors.black),
                     ),
                   ),
                   DropdownMenuItem(
                     value: 'other',
                     child: Text(
-                      '📦 Khác',
+                      'Khác',
                       style: const TextStyle(color: Colors.black),
                     ),
                   ),
@@ -320,8 +322,8 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
                               dateTime: DateTime.now(),
                             );
 
-                            await expenseProvider.addExpenseFromText(
-                                '${expense.description} ${expense.amount} ${expense.category}');
+                            // Add expense directly without parsing
+                            await expenseProvider.addExpense(expense);
 
                             if (context.mounted) {
                               Navigator.pop(context);
@@ -458,6 +460,71 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
             foregroundColor: Colors.white,
             elevation: 0,
             actions: [
+              // Realtime sync indicator
+              Consumer3<ExpenseProvider, AnalyticsProvider,
+                  NotificationProvider>(
+                builder: (context, expenseProvider, analyticsProvider,
+                    notificationProvider, _) {
+                  return Container(
+                    margin: const EdgeInsets.only(right: 8),
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        // Sync indicator
+                        if (expenseProvider.isLoading ||
+                            analyticsProvider.isLoading)
+                          Container(
+                            padding: const EdgeInsets.all(8),
+                            child: const SizedBox(
+                              width: 16,
+                              height: 16,
+                              child: CircularProgressIndicator(
+                                strokeWidth: 2,
+                                valueColor:
+                                    AlwaysStoppedAnimation<Color>(Colors.white),
+                              ),
+                            ),
+                          )
+                        else
+                          Container(
+                            padding: const EdgeInsets.all(8),
+                            child: const Icon(
+                              Icons.cloud_done,
+                              color: Colors.white,
+                              size: 16,
+                            ),
+                          ),
+                        // Notification indicator
+                        if (notificationProvider.hasNewNotifications)
+                          Container(
+                            padding: const EdgeInsets.all(8),
+                            child: Stack(
+                              children: [
+                                const Icon(
+                                  Icons.notifications,
+                                  color: Colors.white,
+                                  size: 16,
+                                ),
+                                Positioned(
+                                  right: 0,
+                                  top: 0,
+                                  child: Container(
+                                    width: 8,
+                                    height: 8,
+                                    decoration: const BoxDecoration(
+                                      color: Colors.red,
+                                      shape: BoxShape.circle,
+                                    ),
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                      ],
+                    ),
+                  );
+                },
+              ),
               Container(
                 margin: const EdgeInsets.only(right: 16),
                 decoration: BoxDecoration(
