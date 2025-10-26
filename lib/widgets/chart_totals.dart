@@ -74,7 +74,6 @@ class _ChartTotalsState extends State<ChartTotals>
               ),
             ],
           ),
-          
         );
       },
     );

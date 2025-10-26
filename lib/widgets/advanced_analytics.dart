@@ -74,7 +74,7 @@ class _AdvancedAnalyticsState extends State<AdvancedAnalytics>
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
                           Text(
-                            'Phân tích nâng cao',
+                            'Phân tích chi tiêu',
                             style: Theme.of(context)
                                 .textTheme
                                 .headlineSmall
@@ -85,7 +85,7 @@ class _AdvancedAnalyticsState extends State<AdvancedAnalytics>
                           ),
                           const SizedBox(height: 4),
                           Text(
-                            'Thống kê chi tiết về chi tiêu',
+                            'Hiểu rõ thói quen chi tiêu của bạn',
                             style: Theme.of(context)
                                 .textTheme
                                 .titleMedium
@@ -122,15 +122,23 @@ class _AdvancedAnalyticsState extends State<AdvancedAnalytics>
 
   Widget _buildMetricSelector() {
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
       decoration: BoxDecoration(
-        color: Colors.grey.shade100,
+        color: const Color(0xFF667eea).withOpacity(0.1),
         borderRadius: BorderRadius.circular(8),
+        border: Border.all(
+          color: const Color(0xFF667eea).withOpacity(0.2),
+        ),
       ),
       child: DropdownButtonHideUnderline(
         child: DropdownButton<String>(
           value: _selectedMetric,
           isDense: true,
+          style: TextStyle(
+            color: const Color(0xFF667eea),
+            fontWeight: FontWeight.w600,
+            fontSize: 14,
+          ),
           items: const [
             DropdownMenuItem(
               value: 'spending',
@@ -202,7 +210,14 @@ class _AdvancedAnalyticsState extends State<AdvancedAnalytics>
         children: [
           Row(
             children: [
-              Icon(icon, color: color, size: 20),
+              Container(
+                padding: const EdgeInsets.all(8),
+                decoration: BoxDecoration(
+                  color: color.withOpacity(0.1),
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: Icon(icon, color: color, size: 16),
+              ),
               const SizedBox(width: 8),
               Expanded(
                 child: Text(
@@ -216,7 +231,7 @@ class _AdvancedAnalyticsState extends State<AdvancedAnalytics>
               ),
             ],
           ),
-          const SizedBox(height: 8),
+          const SizedBox(height: 12),
           Text(
             value,
             style: TextStyle(
@@ -231,6 +246,7 @@ class _AdvancedAnalyticsState extends State<AdvancedAnalytics>
             style: TextStyle(
               color: Colors.grey.shade500,
               fontSize: 10,
+              fontWeight: FontWeight.w500,
             ),
           ),
         ],
@@ -243,9 +259,16 @@ class _AdvancedAnalyticsState extends State<AdvancedAnalytics>
       height: 200,
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: Colors.grey.shade50,
+        color: Colors.white,
         borderRadius: BorderRadius.circular(12),
         border: Border.all(color: Colors.grey.shade200),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.05),
+            blurRadius: 8,
+            offset: const Offset(0, 2),
+          ),
+        ],
       ),
       child: LineChart(
         LineChartData(
@@ -348,13 +371,30 @@ class _AdvancedAnalyticsState extends State<AdvancedAnalytics>
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text(
-            'Thông tin chi tiết',
-            style: TextStyle(
-              fontWeight: FontWeight.bold,
-              fontSize: 16,
-              color: Colors.grey.shade800,
-            ),
+          Row(
+            children: [
+              Container(
+                padding: const EdgeInsets.all(8),
+                decoration: BoxDecoration(
+                  color: const Color(0xFF667eea).withOpacity(0.1),
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: Icon(
+                  Icons.lightbulb_outline,
+                  color: const Color(0xFF667eea),
+                  size: 16,
+                ),
+              ),
+              const SizedBox(width: 8),
+              Text(
+                'Thông tin chi tiết',
+                style: TextStyle(
+                  fontWeight: FontWeight.bold,
+                  fontSize: 16,
+                  color: Colors.grey.shade800,
+                ),
+              ),
+            ],
           ),
           const SizedBox(height: 12),
           _buildInsightRow(
@@ -382,18 +422,32 @@ class _AdvancedAnalyticsState extends State<AdvancedAnalytics>
 
   Widget _buildInsightRow(
       String label, String value, IconData icon, Color color) {
-    return Padding(
-      padding: const EdgeInsets.only(bottom: 8),
+    return Container(
+      margin: const EdgeInsets.only(bottom: 8),
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: color.withOpacity(0.05),
+        borderRadius: BorderRadius.circular(8),
+        border: Border.all(color: color.withOpacity(0.1)),
+      ),
       child: Row(
         children: [
-          Icon(icon, color: color, size: 16),
-          const SizedBox(width: 8),
+          Container(
+            padding: const EdgeInsets.all(6),
+            decoration: BoxDecoration(
+              color: color.withOpacity(0.1),
+              borderRadius: BorderRadius.circular(6),
+            ),
+            child: Icon(icon, color: color, size: 14),
+          ),
+          const SizedBox(width: 12),
           Expanded(
             child: Text(
               label,
               style: TextStyle(
                 color: Colors.grey.shade700,
-                fontSize: 12,
+                fontSize: 13,
+                fontWeight: FontWeight.w500,
               ),
             ),
           ),
@@ -401,7 +455,7 @@ class _AdvancedAnalyticsState extends State<AdvancedAnalytics>
             value,
             style: TextStyle(
               color: color,
-              fontSize: 12,
+              fontSize: 13,
               fontWeight: FontWeight.bold,
             ),
           ),

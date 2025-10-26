@@ -10,7 +10,7 @@ import '../widgets/expense_chart.dart';
 import '../widgets/category_chart.dart';
 import '../widgets/chart_totals.dart';
 import '../widgets/filter_selector.dart';
-import '../widgets/advanced_analytics.dart';
+import '../widgets/comprehensive_analytics.dart';
 import '../widgets/spending_insights.dart';
 
 class ChartsScreen extends StatefulWidget {
@@ -297,7 +297,8 @@ class _ChartsScreenState extends State<ChartsScreen>
       case 0:
         return _buildOverviewTab(filteredTransactions, settingsProvider);
       case 1:
-        return _buildAnalyticsTab(filteredTransactions, settingsProvider);
+        // Truyền toàn bộ transactions cho ComprehensiveAnalytics để có đủ dữ liệu cho cả 2 kỳ
+        return _buildAnalyticsTab(transactions, settingsProvider);
       case 2:
         return _buildInsightsTab(filteredTransactions, settingsProvider);
       default:
@@ -329,6 +330,7 @@ class _ChartsScreenState extends State<ChartsScreen>
                 DropdownMenuItem(value: 'daily', child: Text('Ngày')),
                 DropdownMenuItem(value: 'weekly', child: Text('Tuần')),
                 DropdownMenuItem(value: 'monthly', child: Text('Tháng')),
+                DropdownMenuItem(value: 'yearly', child: Text('Năm')),
               ],
               onChanged: (value) {
                 if (value != null) {
@@ -351,6 +353,11 @@ class _ChartsScreenState extends State<ChartsScreen>
                         _selectedDate = null;
                         _selectedWeekStart = null;
                         _selectedMonthStart = DateTime(now.year, now.month, 1);
+                        break;
+                      case 'yearly':
+                        _selectedDate = null;
+                        _selectedWeekStart = null;
+                        _selectedMonthStart = DateTime(now.year, 1, 1);
                         break;
                     }
                   });
@@ -454,6 +461,12 @@ class _ChartsScreenState extends State<ChartsScreen>
       } else {
         return '${now.month}/${now.year}';
       }
+    } else if (_selectedPeriod == 'yearly') {
+      if (_selectedMonthStart != null) {
+        return 'Năm ${_selectedMonthStart!.year}';
+      } else {
+        return 'Năm ${now.year}';
+      }
     }
     return 'Chọn ngày';
   }
@@ -502,6 +515,20 @@ class _ChartsScreenState extends State<ChartsScreen>
           _selectedMonthStart = firstDay;
         });
       }
+    } else if (_selectedPeriod == 'yearly') {
+      selectedDate = await showDatePicker(
+        context: context,
+        initialDate: _selectedMonthStart ?? DateTime.now(),
+        firstDate: DateTime(2020),
+        lastDate: DateTime.now(),
+      );
+      if (selectedDate != null) {
+        // First day of the selected year
+        final firstDay = DateTime(selectedDate.year, 1, 1);
+        setState(() {
+          _selectedMonthStart = firstDay;
+        });
+      }
     }
   }
 
@@ -546,6 +573,12 @@ class _ChartsScreenState extends State<ChartsScreen>
         return t.dateTime.isAfter(monthStart) &&
             t.dateTime.isBefore(endOfMonth);
       }).toList();
+    } else if (_selectedPeriod == 'yearly') {
+      final yearStart = _selectedMonthStart ?? DateTime(now.year, 1, 1);
+      final endOfYear = DateTime(yearStart.year + 1, 1, 1);
+      return transactions.where((t) {
+        return t.dateTime.isAfter(yearStart) && t.dateTime.isBefore(endOfYear);
+      }).toList();
     }
     return transactions;
   }
@@ -584,22 +617,21 @@ class _ChartsScreenState extends State<ChartsScreen>
 
   Widget _buildAnalyticsTab(List<models.Transaction> transactions,
       SettingsProvider settingsProvider) {
-    final expenses = _convertTransactionsToExpenses(transactions);
+    print(
+        '🔍 DEBUG ChartsScreen: Passing ${transactions.length} transactions to ComprehensiveAnalytics');
+    print('  selectedPeriod: $_selectedPeriod');
+    print('  selectedTransactionType: $_selectedTransactionType');
+    print('  selectedDate: $_selectedDate');
+    print('  selectedWeekStart: $_selectedWeekStart');
+    print('  selectedMonthStart: $_selectedMonthStart');
 
-    return Column(
-      children: [
-        // Advanced Analytics
-        if (expenses.isNotEmpty) ...[
-          AdvancedAnalytics(expenses: expenses),
-          const SizedBox(height: 20),
-        ],
-
-        // Category Totals
-        if (expenses.isNotEmpty) ...[
-          ChartTotals(expenses: expenses),
-          const SizedBox(height: 20),
-        ],
-      ],
+    return ComprehensiveAnalytics(
+      transactions: transactions,
+      selectedPeriod: _selectedPeriod,
+      selectedTransactionType: _selectedTransactionType,
+      selectedDate: _selectedDate,
+      selectedWeekStart: _selectedWeekStart,
+      selectedMonthStart: _selectedMonthStart,
     );
   }
 

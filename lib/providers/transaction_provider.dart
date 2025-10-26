@@ -22,6 +22,12 @@ class TransactionProvider extends ChangeNotifier {
     _loading = true;
     notifyListeners();
     _ds.watchTx(_uid).listen((rows) {
+      print(
+          '🔍 DEBUG TransactionProvider: Received ${rows.length} transactions from Firestore');
+      for (var row in rows.take(5)) {
+        print('  ${row['dateTime']}: ${row['amount']} VND (${row['type']})');
+      }
+
       _items = rows
           .map((data) {
             try {
