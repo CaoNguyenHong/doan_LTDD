@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:spend_sage/hive/expense.dart';
 import 'package:provider/provider.dart';
 import '../providers/settings_provider.dart';
+import '../utils/currency_formatter.dart';
 
 class ChartTotals extends StatefulWidget {
   final List<Expense> expenses;
@@ -73,177 +74,7 @@ class _ChartTotalsState extends State<ChartTotals>
               ),
             ],
           ),
-          child: Padding(
-            padding: const EdgeInsets.all(24),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                // Header
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(
-                            'Tổng kết theo danh mục',
-                            style: Theme.of(context)
-                                .textTheme
-                                .headlineSmall
-                                ?.copyWith(
-                                  fontWeight: FontWeight.bold,
-                                  color: const Color(0xFF2D3748),
-                                ),
-                          ),
-                          const SizedBox(height: 4),
-                          Text(
-                            'Tổng: $currency${total.toStringAsFixed(2)}',
-                            style: Theme.of(context)
-                                .textTheme
-                                .titleMedium
-                                ?.copyWith(
-                                  color: Colors.grey.shade600,
-                                  fontWeight: FontWeight.w500,
-                                ),
-                          ),
-                        ],
-                      ),
-                    ),
-                    const SizedBox(width: 8),
-                    _buildSortSelector(),
-                  ],
-                ),
-                const SizedBox(height: 24),
-
-                // Category List
-                SizedBox(
-                  height: 300,
-                  child: FadeTransition(
-                    opacity: _fadeAnimation,
-                    child: SlideTransition(
-                      position: _slideAnimation,
-                      child: ListView.builder(
-                        itemCount: categoryTotals.length,
-                        itemBuilder: (context, index) {
-                          if (index >= categoryTotals.length)
-                            return const SizedBox.shrink();
-                          final entry = categoryTotals.entries.elementAt(index);
-                          final percentage =
-                              total > 0 ? (entry.value / total * 100) : 0.0;
-                          final color = _getCategoryColor(entry.key);
-
-                          return Container(
-                            margin: const EdgeInsets.only(bottom: 12),
-                            padding: const EdgeInsets.all(16),
-                            decoration: BoxDecoration(
-                              color: Colors.white,
-                              borderRadius: BorderRadius.circular(12),
-                              border: Border.all(color: Colors.grey.shade200),
-                              boxShadow: [
-                                BoxShadow(
-                                  color: Colors.black.withOpacity(0.05),
-                                  blurRadius: 8,
-                                  offset: const Offset(0, 2),
-                                ),
-                              ],
-                            ),
-                            child: Row(
-                              children: [
-                                // Category Icon
-                                Container(
-                                  padding: const EdgeInsets.all(12),
-                                  decoration: BoxDecoration(
-                                    color: color.withOpacity(0.1),
-                                    borderRadius: BorderRadius.circular(12),
-                                  ),
-                                  child: Icon(
-                                    _getCategoryIcon(entry.key),
-                                    color: color,
-                                    size: 24,
-                                  ),
-                                ),
-                                const SizedBox(width: 16),
-
-                                // Category Info
-                                Expanded(
-                                  child: Column(
-                                    crossAxisAlignment:
-                                        CrossAxisAlignment.start,
-                                    children: [
-                                      Text(
-                                        _getCategoryDisplayName(entry.key),
-                                        style: TextStyle(
-                                          fontWeight: FontWeight.bold,
-                                          fontSize: 16,
-                                          color: Colors.grey.shade800,
-                                        ),
-                                      ),
-                                      const SizedBox(height: 4),
-                                      Text(
-                                        '${percentage.toStringAsFixed(1)}% • ${_getCategoryCount(entry.key)} giao dịch',
-                                        style: TextStyle(
-                                          color: Colors.grey.shade600,
-                                          fontSize: 12,
-                                        ),
-                                      ),
-                                    ],
-                                  ),
-                                ),
-
-                                // Amount and Progress
-                                Flexible(
-                                  child: Column(
-                                    crossAxisAlignment: CrossAxisAlignment.end,
-                                    children: [
-                                      Text(
-                                        '$currency${entry.value.toStringAsFixed(2)}',
-                                        style: TextStyle(
-                                          fontWeight: FontWeight.bold,
-                                          fontSize: 16,
-                                          color: color,
-                                        ),
-                                        overflow: TextOverflow.ellipsis,
-                                      ),
-                                      const SizedBox(height: 8),
-                                      Container(
-                                        width: 80,
-                                        height: 6,
-                                        decoration: BoxDecoration(
-                                          color: Colors.grey.shade200,
-                                          borderRadius:
-                                              BorderRadius.circular(3),
-                                        ),
-                                        child: FractionallySizedBox(
-                                          alignment: Alignment.centerLeft,
-                                          widthFactor: percentage / 100,
-                                          child: Container(
-                                            decoration: BoxDecoration(
-                                              color: color,
-                                              borderRadius:
-                                                  BorderRadius.circular(3),
-                                            ),
-                                          ),
-                                        ),
-                                      ),
-                                    ],
-                                  ),
-                                ),
-                              ],
-                            ),
-                          );
-                        },
-                      ),
-                    ),
-                  ),
-                ),
-
-                // Summary
-                const SizedBox(height: 20),
-                _buildSummary(total, categoryTotals.length, currency),
-              ],
-            ),
-          ),
+          
         );
       },
     );
@@ -306,7 +137,7 @@ class _ChartTotalsState extends State<ChartTotals>
                 ),
                 const SizedBox(height: 4),
                 Text(
-                  '$currency${total.toStringAsFixed(2)} • $categoryCount danh mục',
+                  '${CurrencyFormatter.format(total)} • $categoryCount danh mục',
                   style: TextStyle(
                     color: const Color(0xFF667eea),
                     fontWeight: FontWeight.bold,

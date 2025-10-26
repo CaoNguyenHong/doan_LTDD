@@ -504,7 +504,7 @@ class _HistoryScreenState extends State<HistoryScreen> {
 
           // Amount
           GestureDetector(
-            onTap: () => _showTransactionOptions(transaction),
+            onTap: () => _showTransactionOptions(transaction, settings),
             child: Container(
               padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
               decoration: BoxDecoration(
@@ -526,7 +526,8 @@ class _HistoryScreenState extends State<HistoryScreen> {
     );
   }
 
-  void _showTransactionOptions(models.Transaction transaction) {
+  void _showTransactionOptions(
+      models.Transaction transaction, SettingsProvider settings) {
     showModalBottomSheet(
       context: context,
       useRootNavigator: false,
@@ -541,7 +542,7 @@ class _HistoryScreenState extends State<HistoryScreen> {
                     style: TextStyle(color: Colors.blue)),
                 onTap: () {
                   Navigator.pop(context);
-                  _editTransaction(transaction);
+                  _editTransaction(transaction, settings);
                 },
               ),
               ListTile(
@@ -559,13 +560,17 @@ class _HistoryScreenState extends State<HistoryScreen> {
     );
   }
 
-  void _editTransaction(models.Transaction transaction) {
+  void _editTransaction(
+      models.Transaction transaction, SettingsProvider settingsProvider) {
     showModalBottomSheet(
       context: context,
       useRootNavigator: false,
       isScrollControlled: true,
       backgroundColor: Colors.transparent,
-      builder: (context) => TransactionEditSheet(transaction: transaction),
+      builder: (context) => TransactionEditSheet(
+        transaction: transaction,
+        settingsProvider: settingsProvider,
+      ),
     );
   }
 

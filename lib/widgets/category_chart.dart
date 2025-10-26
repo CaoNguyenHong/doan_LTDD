@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:fl_chart/fl_chart.dart';
 import 'package:spend_sage/hive/expense.dart';
 import '../utils/transaction_converter.dart';
+import '../utils/currency_formatter.dart';
 
 class CategoryChart extends StatefulWidget {
   final List<Expense> expenses;
@@ -85,7 +86,7 @@ class _CategoryChartState extends State<CategoryChart>
                       ),
                       const SizedBox(height: 4),
                       Text(
-                        'Tổng: \$${total.toStringAsFixed(2)}',
+                        'Tổng: ${CurrencyFormatter.format(total)}',
                         style:
                             Theme.of(context).textTheme.titleMedium?.copyWith(
                                   color: Colors.grey.shade600,
@@ -95,41 +96,20 @@ class _CategoryChartState extends State<CategoryChart>
                     ],
                   ),
                 ),
-                if (_selectedCategory != null)
-                  Container(
-                    padding:
-                        const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-                    decoration: BoxDecoration(
-                      color: _getCategoryColor(_selectedCategory!)
-                          .withOpacity(0.1),
-                      borderRadius: BorderRadius.circular(20),
-                      border: Border.all(
-                        color: _getCategoryColor(_selectedCategory!),
-                        width: 1,
-                      ),
-                    ),
-                    child: Text(
-                      TransactionConverter.mapCategory(_selectedCategory!),
-                      style: TextStyle(
-                        color: _getCategoryColor(_selectedCategory!),
-                        fontSize: 12,
-                        fontWeight: FontWeight.bold,
-                      ),
-                    ),
-                  ),
+                
               ],
             ),
-            const SizedBox(height: 24),
+            const SizedBox(height: 80),
 
             // Chart
             SizedBox(
-              height: 300,
+              height: 200, // Giảm từ 300 xuống 250 để biểu đồ nhỏ hơn
               child: ScaleTransition(
                 scale: _scaleAnimation,
                 child: PieChart(
                   PieChartData(
                     sectionsSpace: 3,
-                    centerSpaceRadius: 60,
+                    centerSpaceRadius: 35,
                     sections: _createPieSections(categoryData),
                     pieTouchData: PieTouchData(
                       touchCallback: (event, response) {
@@ -153,7 +133,8 @@ class _CategoryChartState extends State<CategoryChart>
             ),
 
             // Legend
-            const SizedBox(height: 20),
+            const SizedBox(
+                height: 100), // Tăng từ 20 lên 30 để dịch phần chi tiết xuống
             _buildLegend(categoryData, total),
           ],
         ),
@@ -186,8 +167,15 @@ class _CategoryChartState extends State<CategoryChart>
             final isSelected = _selectedCategory == entry.key;
             final color = _getCategoryColor(entry.key);
 
+            // print(
+            //     '🔍 CategoryChart: entry.key = ${entry.key}, entry.value = ${entry.value}');
+            final categoryName =
+                entry.key; // entry.key đã là tên danh mục đúng rồi
+            // print(
+            //     '🔍 CategoryChart: using category name directly = $categoryName');
+
             return Container(
-              margin: const EdgeInsets.only(bottom: 8),
+              margin: const EdgeInsets.only(bottom: 15), // Tăng từ 8 lên 16 để tránh chồng đè
               padding: const EdgeInsets.all(12),
               decoration: BoxDecoration(
                 color: isSelected ? color.withOpacity(0.1) : Colors.transparent,
@@ -210,7 +198,7 @@ class _CategoryChartState extends State<CategoryChart>
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         Text(
-                          TransactionConverter.mapCategory(entry.key),
+                          categoryName,
                           style: TextStyle(
                             fontWeight:
                                 isSelected ? FontWeight.bold : FontWeight.w500,
@@ -219,7 +207,7 @@ class _CategoryChartState extends State<CategoryChart>
                           ),
                         ),
                         Text(
-                          '${percentage.toStringAsFixed(1)}% • \$${entry.value.toStringAsFixed(2)}',
+                          '${percentage.toStringAsFixed(1)}% • ${CurrencyFormatter.format(entry.value)}',
                           style: TextStyle(
                             color: Colors.grey.shade600,
                             fontSize: 11,

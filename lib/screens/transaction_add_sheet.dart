@@ -392,14 +392,27 @@ class _TransactionAddSheetState extends State<TransactionAddSheet>
             // Date picker
             InkWell(
               onTap: () async {
+                // print(
+                //     '🔍 Date picker tapped - current _selectedDate: $_selectedDate');
                 final date = await showDatePicker(
                   context: context,
                   initialDate: _selectedDate,
                   firstDate: DateTime(2020),
-                  lastDate: DateTime.now().add(const Duration(days: 365)),
+                  lastDate: DateTime
+                      .now(), // Chỉ cho phép chọn ngày hiện tại và quá khứ
                 );
+                // print('🔍 Date picker returned: $date');
                 if (date != null) {
-                  setState(() => _selectedDate = date);
+                  // print('🔍 Date picker selected: $date');
+                  // print(
+                  //     '🔍 Date picker formatted: ${date.day}/${date.month}/${date.year}');
+                  // print('🔍 Before setState - _selectedDate: $_selectedDate');
+                  setState(() {
+                    _selectedDate = date;
+                    // print('🔍 After setState - _selectedDate: $_selectedDate');
+                  });
+                } else {
+                  // print('🔍 Date picker cancelled');
                 }
               },
               child: InputDecorator(
@@ -410,8 +423,14 @@ class _TransactionAddSheetState extends State<TransactionAddSheet>
                     borderRadius: BorderRadius.circular(12),
                   ),
                 ),
-                child: Text(
-                  '${_selectedDate.day}/${_selectedDate.month}/${_selectedDate.year}',
+                child: Builder(
+                  builder: (context) {
+                    print(
+                        '🔍 Building date display - _selectedDate: $_selectedDate');
+                    return Text(
+                      '${_selectedDate.day}/${_selectedDate.month}/${_selectedDate.year}',
+                    );
+                  },
                 ),
               ),
             ),
@@ -506,14 +525,24 @@ class _TransactionAddSheetState extends State<TransactionAddSheet>
       currency: currency,
       description: description,
       tags: _tags,
-      dateTime: _selectedDate,
+      dateTime: DateTime(
+        _selectedDate.year,
+        _selectedDate.month,
+        _selectedDate.day,
+        DateTime.now().hour,
+        DateTime.now().minute,
+        DateTime.now().second,
+      ),
       createdAt: DateTime.now(),
       updatedAt: DateTime.now(),
       deleted: false,
     );
 
-    print(
-        '🔍 Adding transaction: ${transaction.type} - ${transaction.amount} ${transaction.currency}');
+    // print(
+    //     '🔍 Adding transaction: ${transaction.type} - ${transaction.amount} ${transaction.currency}');
+    // print('🔍 Transaction dateTime: ${transaction.dateTime}');
+    // print(
+    //     '🔍 Transaction dateTime formatted: ${transaction.dateTime.day}/${transaction.dateTime.month}/${transaction.dateTime.year}');
 
     final transactionProvider =
         Provider.of<TransactionProvider>(context, listen: false);

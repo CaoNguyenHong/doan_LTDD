@@ -48,9 +48,9 @@ class Transaction {
       'description': description,
       'merchantId': merchantId,
       'tags': tags,
-      'dateTime': Timestamp.fromDate(dateTime),
-      'createdAt': Timestamp.fromDate(createdAt),
-      'updatedAt': Timestamp.fromDate(updatedAt),
+      'dateTime': Timestamp.fromDate(dateTime.toUtc()),
+      'createdAt': Timestamp.fromDate(createdAt.toUtc()),
+      'updatedAt': Timestamp.fromDate(updatedAt.toUtc()),
       'deleted': deleted,
       'attachmentUrl': attachmentUrl,
       'isAdjustment': isAdjustment,
@@ -72,20 +72,28 @@ class Transaction {
       tags: List<String>.from(data['tags'] ?? []),
       dateTime: () {
         final raw = data['dateTime'];
-        if (raw is Timestamp) return raw.toDate();
-        if (raw is String) return DateTime.tryParse(raw) ?? DateTime.now();
+        if (raw is Timestamp) {
+          final date = raw.toDate().toLocal();
+          return date;
+        }
+        if (raw is String) {
+          final date = DateTime.tryParse(raw)?.toLocal() ?? DateTime.now();
+          return date;
+        }
         return DateTime.now();
       }(),
       createdAt: () {
         final raw = data['createdAt'];
-        if (raw is Timestamp) return raw.toDate();
-        if (raw is String) return DateTime.tryParse(raw) ?? DateTime.now();
+        if (raw is Timestamp) return raw.toDate().toLocal();
+        if (raw is String)
+          return DateTime.tryParse(raw)?.toLocal() ?? DateTime.now();
         return DateTime.now();
       }(),
       updatedAt: () {
         final raw = data['updatedAt'];
-        if (raw is Timestamp) return raw.toDate();
-        if (raw is String) return DateTime.tryParse(raw) ?? DateTime.now();
+        if (raw is Timestamp) return raw.toDate().toLocal();
+        if (raw is String)
+          return DateTime.tryParse(raw)?.toLocal() ?? DateTime.now();
         return DateTime.now();
       }(),
       deleted: (data['deleted'] as bool?) ?? false,

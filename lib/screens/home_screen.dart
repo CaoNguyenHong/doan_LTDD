@@ -15,7 +15,9 @@ import 'transaction_add_sheet.dart';
 import 'transaction_edit_sheet.dart';
 
 class HomeScreen extends StatefulWidget {
-  const HomeScreen({super.key});
+  final VoidCallback? onNavigateToCharts;
+
+  const HomeScreen({super.key, this.onNavigateToCharts});
 
   @override
   State<HomeScreen> createState() => _HomeScreenState();
@@ -237,11 +239,15 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
                                 label: 'Xem báo cáo',
                                 color: Theme.of(context).colorScheme.secondary,
                                 onTap: () {
-                                  ScaffoldMessenger.of(context).showSnackBar(
-                                    const SnackBar(
-                                      content: Text('Chuyển đến tab Biểu đồ'),
-                                    ),
-                                  );
+                                  if (widget.onNavigateToCharts != null) {
+                                    widget.onNavigateToCharts!();
+                                  } else {
+                                    ScaffoldMessenger.of(context).showSnackBar(
+                                      const SnackBar(
+                                        content: Text('Chuyển đến tab Biểu đồ'),
+                                      ),
+                                    );
+                                  }
                                 },
                               ),
                             ),
@@ -301,12 +307,12 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
                       final transactions = transactionProvider.transactions;
 
                       // Debug log để kiểm tra dữ liệu
-                      print(
-                          '🔍 HomeScreen: Received ${transactions.length} transactions');
-                      for (final transaction in transactions) {
-                        print(
-                            '  - ${transaction.type}: ${transaction.amount} (${transaction.dateTime})');
-                      }
+                      // print(
+                      //     '🔍 HomeScreen: Received ${transactions.length} transactions');
+                      // for (final transaction in transactions) {
+                      //   print(
+                      //       '  - ${transaction.type}: ${transaction.amount} (${transaction.dateTime})');
+                      // }
 
                       if (transactions.isEmpty) {
                         return Center(
@@ -753,6 +759,13 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
   }
 
   void _showTransactionOptions(models.Transaction transaction) {
+    // print(
+    //     '🔍 _showTransactionOptions called for transaction: ${transaction.id}');
+    final settingsProvider = context.read<SettingsProvider>();
+    final transactionProvider = context.read<TransactionProvider>();
+    // print('🔍 SettingsProvider obtained: ${settingsProvider.currency}');
+    // print(
+    //     '🔍 TransactionProvider obtained: ${transactionProvider.transactions.length} transactions');
     showModalBottomSheet(
       context: context,
       backgroundColor: Colors.transparent,
@@ -809,9 +822,7 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
                         const SizedBox(height: 4),
                         Text(
                           CurrencyFormatter.format(transaction.amount,
-                              currency: Provider.of<SettingsProvider>(context,
-                                      listen: false)
-                                  .currency),
+                              currency: settingsProvider.currency),
                           style: TextStyle(
                             fontSize: 16,
                             color: _getTransactionColor(transaction.type),
@@ -838,16 +849,21 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
               leading: const Icon(Icons.edit, color: Colors.blue),
               title: const Text('Chỉnh sửa'),
               onTap: () {
+                // print(
+                //     '🔍 Edit button tapped for transaction: ${transaction.id}');
                 Navigator.pop(context);
-                _editTransaction(transaction);
+                _editTransaction(transaction, settingsProvider);
               },
             ),
             ListTile(
               leading: const Icon(Icons.delete, color: Colors.red),
               title: const Text('Xóa'),
               onTap: () {
+                // print(
+                //     '🔍 Delete button tapped for transaction: ${transaction.id}');
                 Navigator.pop(context);
-                _deleteTransaction(transaction);
+                _deleteTransaction(
+                    transaction, settingsProvider, transactionProvider);
               },
             ),
             const SizedBox(height: 20),
@@ -887,22 +903,33 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
     }
   }
 
-  void _editTransaction(models.Transaction transaction) {
+  void _editTransaction(
+      models.Transaction transaction, SettingsProvider settingsProvider) {
+    // print('🔍 _editTransaction called for transaction: ${transaction.id}');
+    // print('🔍 SettingsProvider currency: ${settingsProvider.currency}');
     showModalBottomSheet(
       context: context,
       isScrollControlled: true,
       backgroundColor: Colors.transparent,
-      builder: (context) => TransactionEditSheet(transaction: transaction),
+      builder: (context) => TransactionEditSheet(
+        transaction: transaction,
+        settingsProvider: settingsProvider,
+      ),
     );
   }
 
-  void _deleteTransaction(models.Transaction transaction) {
+  void _deleteTransaction(
+      models.Transaction transaction,
+      SettingsProvider settingsProvider,
+      TransactionProvider transactionProvider) {
+    // print('🔍 _deleteTransaction called for transaction: ${transaction.id}');
+    // print('🔍 SettingsProvider currency: ${settingsProvider.currency}');
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
         title: const Text('Xác nhận xóa'),
         content: Text(
-            'Bạn có chắc chắn muốn xóa giao dịch này?\n\n${_getCategoryName(transaction.categoryId)} - ${CurrencyFormatter.format(transaction.amount, currency: Provider.of<SettingsProvider>(context, listen: false).currency)}'),
+            'Bạn có chắc chắn muốn xóa giao dịch này?\n\n${_getCategoryName(transaction.categoryId)} - ${CurrencyFormatter.format(transaction.amount, currency: settingsProvider.currency)}'),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context),
@@ -912,8 +939,7 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
             onPressed: () async {
               Navigator.pop(context);
               try {
-                await Provider.of<TransactionProvider>(context, listen: false)
-                    .deleteTransaction(transaction.id);
+                await transactionProvider.deleteTransaction(transaction.id);
                 if (mounted) {
                   ScaffoldMessenger.of(context).showSnackBar(
                     const SnackBar(

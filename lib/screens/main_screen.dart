@@ -18,18 +18,19 @@ class _MainScreenState extends State<MainScreen> with TickerProviderStateMixin {
   late AnimationController _animationController;
   late Animation<double> _fadeAnimation;
 
-  final List<Widget> _screens = [
-    const HomeScreen(),
-    const HistoryScreen(),
-    const ChartsScreen(),
-    const AccountsScreen(),
-    const BudgetsScreen(),
-    const ProfileScreen(),
-  ];
+  late final List<Widget> _screens;
 
   @override
   void initState() {
     super.initState();
+    _screens = [
+      HomeScreen(onNavigateToCharts: () => _onTabTapped(2)),
+      const HistoryScreen(),
+      const ChartsScreen(),
+      const AccountsScreen(),
+      const BudgetsScreen(),
+      const ProfileScreen(),
+    ];
     _animationController = AnimationController(
       duration: const Duration(milliseconds: 300),
       vsync: this,

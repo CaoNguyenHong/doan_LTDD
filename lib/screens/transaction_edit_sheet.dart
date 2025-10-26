@@ -7,10 +7,12 @@ import '../utils/transaction_converter.dart';
 
 class TransactionEditSheet extends StatefulWidget {
   final models.Transaction transaction;
+  final SettingsProvider settingsProvider;
 
   const TransactionEditSheet({
     Key? key,
     required this.transaction,
+    required this.settingsProvider,
   }) : super(key: key);
 
   @override
@@ -276,9 +278,7 @@ class _TransactionEditSheetState extends State<TransactionEditSheet> {
                 ),
                 contentPadding:
                     const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-                suffixText:
-                    Provider.of<SettingsProvider>(context, listen: false)
-                        .currency,
+                suffixText: widget.settingsProvider.currency,
               ),
             ),
             const SizedBox(height: 24),

@@ -27,6 +27,16 @@ class _ChartsScreenState extends State<ChartsScreen>
   late Animation<Offset> _slideAnimation;
   int _selectedTab = 0;
 
+  // Global date filter state
+  String _selectedPeriod = 'daily'; // daily, weekly, monthly
+  DateTime? _selectedDate;
+  DateTime? _selectedWeekStart;
+  DateTime? _selectedMonthStart;
+
+  // Transaction type filter
+  String _selectedTransactionType =
+      'expense'; // expense, income, transfer, refund, all
+
   final List<String> _tabs = [
     'Tổng quan',
     'Phân tích',
@@ -36,6 +46,14 @@ class _ChartsScreenState extends State<ChartsScreen>
   @override
   void initState() {
     super.initState();
+
+    // Set default values
+    final now = DateTime.now();
+    _selectedDate = now; // Default to today
+    _selectedWeekStart = _getStartOfWeek(now); // Default to current week
+    _selectedMonthStart =
+        DateTime(now.year, now.month, 1); // Default to current month
+
     _animationController = AnimationController(
       duration: const Duration(milliseconds: 1000),
       vsync: this,
@@ -144,44 +162,104 @@ class _ChartsScreenState extends State<ChartsScreen>
                       ),
                     ],
                   ),
-                  child: Row(
-                    children: _tabs.asMap().entries.map((entry) {
-                      final index = entry.key;
-                      final tab = entry.value;
-                      final isSelected = _selectedTab == index;
+                  child: Column(
+                    children: [
+                      // Tab buttons
+                      Row(
+                        children: _tabs.asMap().entries.map((entry) {
+                          final index = entry.key;
+                          final tab = entry.value;
+                          final isSelected = _selectedTab == index;
 
-                      return Expanded(
-                        child: GestureDetector(
-                          onTap: () {
-                            setState(() {
-                              _selectedTab = index;
-                            });
-                          },
-                          child: Container(
-                            padding: const EdgeInsets.symmetric(vertical: 16),
-                            decoration: BoxDecoration(
-                              color: isSelected
-                                  ? const Color(0xFF667eea).withOpacity(0.1)
-                                  : Colors.transparent,
-                              borderRadius: BorderRadius.circular(12),
-                            ),
-                            child: Text(
-                              tab,
-                              textAlign: TextAlign.center,
-                              style: TextStyle(
-                                color: isSelected
-                                    ? const Color(0xFF667eea)
-                                    : Colors.grey.shade600,
-                                fontWeight: isSelected
-                                    ? FontWeight.bold
-                                    : FontWeight.w500,
-                                fontSize: 14,
+                          return Expanded(
+                            child: GestureDetector(
+                              onTap: () {
+                                setState(() {
+                                  _selectedTab = index;
+                                });
+                              },
+                              child: Container(
+                                padding:
+                                    const EdgeInsets.symmetric(vertical: 16),
+                                decoration: BoxDecoration(
+                                  color: isSelected
+                                      ? const Color(0xFF667eea).withOpacity(0.1)
+                                      : Colors.transparent,
+                                  borderRadius: BorderRadius.circular(12),
+                                ),
+                                child: Text(
+                                  tab,
+                                  textAlign: TextAlign.center,
+                                  style: TextStyle(
+                                    color: isSelected
+                                        ? const Color(0xFF667eea)
+                                        : Colors.grey.shade600,
+                                    fontWeight: isSelected
+                                        ? FontWeight.bold
+                                        : FontWeight.w500,
+                                    fontSize: 14,
+                                  ),
+                                ),
                               ),
                             ),
+                          );
+                        }).toList(),
+                      ),
+                      // Date range selector
+                      Container(
+                        padding: const EdgeInsets.all(16),
+                        decoration: BoxDecoration(
+                          color: Colors.grey.shade50,
+                          borderRadius: const BorderRadius.only(
+                            bottomLeft: Radius.circular(12),
+                            bottomRight: Radius.circular(12),
                           ),
                         ),
-                      );
-                    }).toList(),
+                        child: Column(
+                          children: [
+                            // Date range selector
+                            Row(
+                              children: [
+                                const Icon(Icons.calendar_today,
+                                    color: Color(0xFF667eea), size: 20),
+                                const SizedBox(width: 8),
+                                const Text(
+                                  'Lọc theo:',
+                                  style: TextStyle(
+                                    fontWeight: FontWeight.w600,
+                                    color: Colors.black87,
+                                  ),
+                                ),
+                                const SizedBox(width: 12),
+                                Expanded(
+                                  child: _buildDateRangeSelector(),
+                                ),
+                              ],
+                            ),
+                            const SizedBox(height: 12),
+                            // Transaction type selector
+                            Row(
+                              children: [
+                                const Icon(Icons.category,
+                                    color: Color(0xFF667eea), size: 20),
+                                const SizedBox(width: 8),
+                                const Text(
+                                  'Loại giao dịch:',
+                                  style: TextStyle(
+                                    fontWeight: FontWeight.w600,
+                                    color: Colors.black87,
+                                  ),
+                                ),
+                                const SizedBox(width: 12),
+                                Expanded(
+                                  child: _buildTransactionTypeSelector(),
+                                ),
+                              ],
+                            ),
+                          ],
+                        ),
+                      ),
+                    ],
                   ),
                 ),
               ),
@@ -208,29 +286,268 @@ class _ChartsScreenState extends State<ChartsScreen>
 
   Widget _buildTabContent(List<models.Transaction> transactions,
       SettingsProvider settingsProvider) {
-    if (transactions.isEmpty) {
+    // Apply date filter to transactions
+    final filteredTransactions = _filterTransactionsByDateRange(transactions);
+
+    if (filteredTransactions.isEmpty) {
       return _buildEmptyState();
     }
 
     switch (_selectedTab) {
       case 0:
-        return _buildOverviewTab(transactions, settingsProvider);
+        return _buildOverviewTab(filteredTransactions, settingsProvider);
       case 1:
-        return _buildAnalyticsTab(transactions, settingsProvider);
+        return _buildAnalyticsTab(filteredTransactions, settingsProvider);
       case 2:
-        return _buildInsightsTab(transactions, settingsProvider);
+        return _buildInsightsTab(filteredTransactions, settingsProvider);
       default:
-        return _buildOverviewTab(transactions, settingsProvider);
+        return _buildOverviewTab(filteredTransactions, settingsProvider);
+    }
+  }
+
+  Widget _buildDateRangeSelector() {
+    return Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        // Period selector
+        Container(
+          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+          decoration: BoxDecoration(
+            color: const Color(0xFF667eea).withOpacity(0.1),
+            borderRadius: BorderRadius.circular(20),
+            border: Border.all(color: const Color(0xFF667eea).withOpacity(0.3)),
+          ),
+          child: DropdownButtonHideUnderline(
+            child: DropdownButton<String>(
+              value: _selectedPeriod,
+              dropdownColor: Colors.white,
+              style: const TextStyle(
+                  color: Color(0xFF667eea),
+                  fontSize: 12,
+                  fontWeight: FontWeight.w600),
+              items: const [
+                DropdownMenuItem(value: 'daily', child: Text('Ngày')),
+                DropdownMenuItem(value: 'weekly', child: Text('Tuần')),
+                DropdownMenuItem(value: 'monthly', child: Text('Tháng')),
+              ],
+              onChanged: (value) {
+                if (value != null) {
+                  setState(() {
+                    _selectedPeriod = value;
+                    // Set default values when period changes
+                    final now = DateTime.now();
+                    switch (value) {
+                      case 'daily':
+                        _selectedDate = now;
+                        _selectedWeekStart = null;
+                        _selectedMonthStart = null;
+                        break;
+                      case 'weekly':
+                        _selectedDate = null;
+                        _selectedWeekStart = _getStartOfWeek(now);
+                        _selectedMonthStart = null;
+                        break;
+                      case 'monthly':
+                        _selectedDate = null;
+                        _selectedWeekStart = null;
+                        _selectedMonthStart = DateTime(now.year, now.month, 1);
+                        break;
+                    }
+                  });
+                }
+              },
+            ),
+          ),
+        ),
+        const SizedBox(width: 8),
+        // Date picker button
+        GestureDetector(
+          onTap: _showDatePicker,
+          child: Container(
+            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+            decoration: BoxDecoration(
+              color: const Color(0xFF667eea).withOpacity(0.1),
+              borderRadius: BorderRadius.circular(20),
+              border:
+                  Border.all(color: const Color(0xFF667eea).withOpacity(0.3)),
+            ),
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                const Icon(Icons.calendar_today,
+                    color: Color(0xFF667eea), size: 16),
+                const SizedBox(width: 4),
+                Text(
+                  _getPeriodDisplayName(),
+                  style: const TextStyle(
+                      color: Color(0xFF667eea),
+                      fontSize: 12,
+                      fontWeight: FontWeight.w600),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildTransactionTypeSelector() {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+      decoration: BoxDecoration(
+        color: const Color(0xFF667eea).withOpacity(0.1),
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(color: const Color(0xFF667eea).withOpacity(0.3)),
+      ),
+      child: DropdownButtonHideUnderline(
+        child: DropdownButton<String>(
+          value: _selectedTransactionType,
+          dropdownColor: Colors.white,
+          style: const TextStyle(
+              color: Color(0xFF667eea),
+              fontSize: 12,
+              fontWeight: FontWeight.w600),
+          items: const [
+            DropdownMenuItem(value: 'expense', child: Text('Chi tiêu')),
+            DropdownMenuItem(value: 'income', child: Text('Thu nhập')),
+            DropdownMenuItem(value: 'transfer', child: Text('Chuyển khoản')),
+            DropdownMenuItem(value: 'refund', child: Text('Hoàn tiền')),
+          ],
+          onChanged: (value) {
+            if (value != null) {
+              setState(() {
+                _selectedTransactionType = value;
+              });
+            }
+          },
+        ),
+      ),
+    );
+  }
+
+  DateTime _getStartOfWeek(DateTime date) {
+    // Get Monday of the week (weekday 1)
+    int daysFromMonday = date.weekday - 1;
+    return DateTime(date.year, date.month, date.day - daysFromMonday);
+  }
+
+  String _getPeriodDisplayName() {
+    final now = DateTime.now();
+
+    if (_selectedPeriod == 'daily') {
+      if (_selectedDate != null) {
+        return '${_selectedDate!.day}/${_selectedDate!.month}/${_selectedDate!.year}';
+      } else {
+        return '${now.day}/${now.month}/${now.year}';
+      }
+    } else if (_selectedPeriod == 'weekly') {
+      if (_selectedWeekStart != null) {
+        return 'Tuần ${_selectedWeekStart!.day}/${_selectedWeekStart!.month}';
+      } else {
+        final weekStart = _getStartOfWeek(now);
+        return 'Tuần ${weekStart.day}/${weekStart.month}';
+      }
+    } else if (_selectedPeriod == 'monthly') {
+      if (_selectedMonthStart != null) {
+        return '${_selectedMonthStart!.month}/${_selectedMonthStart!.year}';
+      } else {
+        return '${now.month}/${now.year}';
+      }
+    }
+    return 'Chọn ngày';
+  }
+
+  Future<void> _showDatePicker() async {
+    DateTime? selectedDate;
+
+    if (_selectedPeriod == 'daily') {
+      selectedDate = await showDatePicker(
+        context: context,
+        initialDate: _selectedDate ?? DateTime.now(),
+        firstDate: DateTime(2020),
+        lastDate: DateTime.now(),
+      );
+      if (selectedDate != null) {
+        setState(() {
+          _selectedDate = selectedDate;
+        });
+      }
+    } else if (_selectedPeriod == 'weekly') {
+      selectedDate = await showDatePicker(
+        context: context,
+        initialDate: _selectedWeekStart ?? DateTime.now(),
+        firstDate: DateTime(2020),
+        lastDate: DateTime.now(),
+      );
+      if (selectedDate != null) {
+        // Find Monday of the selected week
+        final monday =
+            selectedDate.subtract(Duration(days: selectedDate.weekday - 1));
+        setState(() {
+          _selectedWeekStart = monday;
+        });
+      }
+    } else if (_selectedPeriod == 'monthly') {
+      selectedDate = await showDatePicker(
+        context: context,
+        initialDate: _selectedMonthStart ?? DateTime.now(),
+        firstDate: DateTime(2020),
+        lastDate: DateTime.now(),
+      );
+      if (selectedDate != null) {
+        // First day of the selected month
+        final firstDay = DateTime(selectedDate.year, selectedDate.month, 1);
+        setState(() {
+          _selectedMonthStart = firstDay;
+        });
+      }
     }
   }
 
   List<Expense> _convertTransactionsToExpenses(
       List<models.Transaction> transactions) {
-    return transactions
-        .where((t) => t.type == 'expense')
+    // Filter transactions by selected type
+    final filteredTransactions =
+        transactions.where((t) => t.type == _selectedTransactionType).toList();
+
+    // Convert to expenses (all transaction types can be converted to expenses for chart display)
+    final expenses = filteredTransactions
         .map((transaction) =>
             TransactionConverter.transactionToExpense(transaction))
         .toList();
+
+    return expenses;
+  }
+
+  List<models.Transaction> _filterTransactionsByDateRange(
+      List<models.Transaction> transactions) {
+    final now = DateTime.now();
+
+    if (_selectedPeriod == 'daily') {
+      final selectedDate = _selectedDate ?? now;
+      final startOfDay =
+          DateTime(selectedDate.year, selectedDate.month, selectedDate.day);
+      final endOfDay = startOfDay.add(const Duration(days: 1));
+      return transactions.where((t) {
+        return t.dateTime.isAfter(startOfDay) && t.dateTime.isBefore(endOfDay);
+      }).toList();
+    } else if (_selectedPeriod == 'weekly') {
+      final weekStart = _selectedWeekStart ?? _getStartOfWeek(now);
+      final endOfWeek = weekStart.add(const Duration(days: 7));
+      return transactions.where((t) {
+        return t.dateTime.isAfter(weekStart) && t.dateTime.isBefore(endOfWeek);
+      }).toList();
+    } else if (_selectedPeriod == 'monthly') {
+      final monthStart =
+          _selectedMonthStart ?? DateTime(now.year, now.month, 1);
+      final endOfMonth = DateTime(monthStart.year, monthStart.month + 1, 1);
+      return transactions.where((t) {
+        return t.dateTime.isAfter(monthStart) &&
+            t.dateTime.isBefore(endOfMonth);
+      }).toList();
+    }
+    return transactions;
   }
 
   Widget _buildOverviewTab(List<models.Transaction> transactions,
@@ -246,7 +563,7 @@ class _ChartsScreenState extends State<ChartsScreen>
 
         // Expense Trend Chart
         if (expenses.isNotEmpty) ...[
-          ExpenseChart(expenses: expenses),
+          ExpenseChart(expenses: expenses, period: _selectedPeriod),
           const SizedBox(height: 20),
         ],
 
@@ -332,8 +649,6 @@ class _ChartsScreenState extends State<ChartsScreen>
       }
     }
 
-    final netAmount = totalIncome + totalRefund - totalExpense;
-
     return Container(
       padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
@@ -392,43 +707,6 @@ class _ChartsScreenState extends State<ChartsScreen>
             totalRefund,
             Colors.orange,
             Icons.reply,
-          ),
-          const SizedBox(height: 16),
-
-          // Số dư thực tế
-          Container(
-            padding: const EdgeInsets.all(16),
-            decoration: BoxDecoration(
-              color: netAmount >= 0
-                  ? Colors.green.withOpacity(0.1)
-                  : Colors.red.withOpacity(0.1),
-              borderRadius: BorderRadius.circular(12),
-              border: Border.all(
-                color: netAmount >= 0
-                    ? Colors.green.withOpacity(0.3)
-                    : Colors.red.withOpacity(0.3),
-                width: 1,
-              ),
-            ),
-            child: Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                Text(
-                  'Số dư thực tế',
-                  style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                        fontWeight: FontWeight.bold,
-                        color: const Color(0xFF2D3748),
-                      ),
-                ),
-                Text(
-                  CurrencyFormatter.format(netAmount),
-                  style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                        fontWeight: FontWeight.bold,
-                        color: netAmount >= 0 ? Colors.green : Colors.red,
-                      ),
-                ),
-              ],
-            ),
           ),
         ],
       ),

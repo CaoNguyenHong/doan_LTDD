@@ -44,9 +44,9 @@ class FirestoreDataSource {
       'deleted': false,
 
       // dateTime hiển thị ngay lập tức (không chờ serverTimestamp)
-      'dateTime': (data['dateTime'] is DateTime)
-          ? Timestamp.fromDate((data['dateTime'] as DateTime).toUtc())
-          : Timestamp.fromDate(now.toUtc()),
+      'dateTime': (data['dateTime'] is Timestamp)
+          ? data['dateTime']
+          : Timestamp.fromDate((data['dateTime'] as DateTime).toUtc()),
 
       // audit fields vẫn dùng server clock
       'createdAt': FieldValue.serverTimestamp(),
