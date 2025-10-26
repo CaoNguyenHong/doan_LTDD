@@ -10,17 +10,29 @@ class FirestoreTransactionRepo {
   String get _collectionPath => 'users/$uid/transactions';
 
   Stream<List<models.Transaction>> watchTransactions() {
+    print('🔥 FirestoreTransactionRepo: Watching transactions for UID: $uid');
+    print('🔥 FirestoreTransactionRepo: Collection path: $_collectionPath');
+
     return _firestore
         .collection(_collectionPath)
         .where('deleted', isEqualTo: false)
         .snapshots()
         .map((snapshot) {
-      final transactions = snapshot.docs
-          .map((doc) => models.Transaction.fromMap(doc.id, doc.data()))
-          .toList();
+      print(
+          '🔥 FirestoreTransactionRepo: Received ${snapshot.docs.length} documents from Firestore');
+      print(
+          '🔥 FirestoreTransactionRepo: Snapshot metadata: ${snapshot.metadata}');
+
+      final transactions = snapshot.docs.map((doc) {
+        print(
+            '🔥 FirestoreTransactionRepo: Document ID: ${doc.id}, Data: ${doc.data()}');
+        return models.Transaction.fromMap(doc.id, doc.data());
+      }).toList();
 
       // Sort manually to avoid index requirement
       transactions.sort((a, b) => b.dateTime.compareTo(a.dateTime));
+      print(
+          '🔥 FirestoreTransactionRepo: Returning ${transactions.length} transactions');
       return transactions;
     });
   }

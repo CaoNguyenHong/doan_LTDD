@@ -298,11 +298,18 @@ class ExpenseProvider with ChangeNotifier {
       return;
     }
 
+    print(
+        '💰 ExpenseProvider: Starting to watch transactions from Firestore...');
+    print('💰 ExpenseProvider: User UID = ${_transactionRepo!.uid}');
+
     try {
       _transactionRepo!.watchTransactions().listen(
         (transactions) {
           print(
-              '💰 ExpenseProvider: Received ${transactions.length} transactions');
+              '💰 ExpenseProvider: Received ${transactions.length} transactions from Firestore');
+          print(
+              '💰 ExpenseProvider: Transaction details: ${transactions.map((t) => '${t.type}: ${t.description}').toList()}');
+
           // Convert transactions to expenses
           final transactionExpenses = transactions
               .where((t) => t.type == 'expense') // Only show expenses

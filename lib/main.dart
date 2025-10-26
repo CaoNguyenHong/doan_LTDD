@@ -11,11 +11,11 @@ import 'package:spend_sage/providers/account_provider.dart';
 import 'package:spend_sage/providers/transaction_provider.dart';
 import 'package:spend_sage/providers/budget_provider.dart';
 import 'package:spend_sage/providers/recurring_provider.dart';
+import 'package:spend_sage/providers/user_aware_provider.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:spend_sage/auth/auth_gate.dart';
 import 'package:spend_sage/screens/main_screen.dart';
 import 'package:spend_sage/service/api_service.dart';
-import 'package:spend_sage/service/database_service.dart';
 import 'firebase_options.dart';
 
 Future<void> _initFirebase() async {
@@ -47,16 +47,12 @@ void main() async {
 
   // Initialize services
   final prefs = await SharedPreferences.getInstance();
-  // TODO(CURSOR): Keep Hive service for migration, remove when fully migrated
-  final databaseService = DatabaseService();
-  await databaseService.init();
 
   final aiService = AIService(
     apiKey: const String.fromEnvironment('GEMINI_API_KEY', defaultValue: ''),
   );
 
   runApp(MyApp(
-    databaseService: databaseService,
     aiService: aiService,
     prefs: prefs,
   ));
@@ -66,13 +62,11 @@ void main() async {
 }
 
 class MyApp extends StatelessWidget {
-  final DatabaseService databaseService;
   final AIService aiService;
   final SharedPreferences prefs;
 
   const MyApp({
     super.key,
-    required this.databaseService,
     required this.aiService,
     required this.prefs,
   });
@@ -81,67 +75,132 @@ class MyApp extends StatelessWidget {
   Widget build(BuildContext context) {
     return MultiProvider(
       providers: [
-        ChangeNotifierProvider(
-          create: (context) => ExpenseProvider.firestore(), // Use Firestore
-        ),
-        ChangeNotifierProvider(
-          create: (context) => SettingsProvider(prefs),
-        ),
-        ChangeNotifierProxyProvider2<ExpenseProvider, SettingsProvider,
-            AnalyticsProvider>(
-          create: (context) => AnalyticsProvider(
-            Provider.of<ExpenseProvider>(context, listen: false),
+        // User-aware providers that recreate when user changes
+        ChangeNotifierProvider<UserAwareProvider<ExpenseProvider>>(
+          create: (context) => UserAwareProvider<ExpenseProvider>(
+            (uid) => ExpenseProvider.firestore(),
           ),
-          update: (context, expenseProvider, settingsProvider, previous) {
-            return previous ?? AnalyticsProvider(expenseProvider);
+        ),
+        ChangeNotifierProvider<UserAwareProvider<SettingsProvider>>(
+          create: (context) => UserAwareProvider<SettingsProvider>(
+            (uid) => SettingsProvider(prefs),
+          ),
+        ),
+        ChangeNotifierProvider<UserAwareProvider<AccountProvider>>(
+          create: (context) => UserAwareProvider<AccountProvider>(
+            (uid) => AccountProvider(uid: uid),
+          ),
+        ),
+        ChangeNotifierProvider<UserAwareProvider<TransactionProvider>>(
+          create: (context) => UserAwareProvider<TransactionProvider>(
+            (uid) => TransactionProvider(uid: uid),
+          ),
+        ),
+        ChangeNotifierProvider<UserAwareProvider<BudgetProvider>>(
+          create: (context) => UserAwareProvider<BudgetProvider>(
+            (uid) => BudgetProvider(uid: uid),
+          ),
+        ),
+        ChangeNotifierProvider<UserAwareProvider<RecurringProvider>>(
+          create: (context) => UserAwareProvider<RecurringProvider>(
+            (uid) => RecurringProvider(uid: uid),
+          ),
+        ),
+
+        // Proxy providers for backward compatibility
+        ChangeNotifierProxyProvider<UserAwareProvider<ExpenseProvider>,
+            ExpenseProvider>(
+          create: (context) {
+            final wrapper = Provider.of<UserAwareProvider<ExpenseProvider>>(
+                context,
+                listen: false);
+            return wrapper.provider;
           },
+          update: (context, wrapper, previous) => wrapper.provider,
         ),
-        ChangeNotifierProxyProvider2<ExpenseProvider, SettingsProvider,
-            NotificationProvider>(
-          create: (context) => NotificationProvider(
-            Provider.of<ExpenseProvider>(context, listen: false),
-            Provider.of<SettingsProvider>(context, listen: false),
-          ),
-          update: (context, expenseProvider, settingsProvider, previous) {
+        ChangeNotifierProxyProvider<UserAwareProvider<SettingsProvider>,
+            SettingsProvider>(
+          create: (context) {
+            final wrapper = Provider.of<UserAwareProvider<SettingsProvider>>(
+                context,
+                listen: false);
+            return wrapper.provider;
+          },
+          update: (context, wrapper, previous) => wrapper.provider,
+        ),
+        ChangeNotifierProxyProvider<UserAwareProvider<AccountProvider>,
+            AccountProvider>(
+          create: (context) {
+            final wrapper = Provider.of<UserAwareProvider<AccountProvider>>(
+                context,
+                listen: false);
+            return wrapper.provider;
+          },
+          update: (context, wrapper, previous) => wrapper.provider,
+        ),
+        ChangeNotifierProxyProvider<UserAwareProvider<TransactionProvider>,
+            TransactionProvider>(
+          create: (context) {
+            final wrapper = Provider.of<UserAwareProvider<TransactionProvider>>(
+                context,
+                listen: false);
+            return wrapper.provider;
+          },
+          update: (context, wrapper, previous) => wrapper.provider,
+        ),
+        ChangeNotifierProxyProvider<UserAwareProvider<BudgetProvider>,
+            BudgetProvider>(
+          create: (context) {
+            final wrapper = Provider.of<UserAwareProvider<BudgetProvider>>(
+                context,
+                listen: false);
+            return wrapper.provider;
+          },
+          update: (context, wrapper, previous) => wrapper.provider,
+        ),
+        ChangeNotifierProxyProvider<UserAwareProvider<RecurringProvider>,
+            RecurringProvider>(
+          create: (context) {
+            final wrapper = Provider.of<UserAwareProvider<RecurringProvider>>(
+                context,
+                listen: false);
+            return wrapper.provider;
+          },
+          update: (context, wrapper, previous) => wrapper.provider,
+        ),
+
+        // Proxy providers that depend on user-aware providers
+        ChangeNotifierProxyProvider2<UserAwareProvider<ExpenseProvider>,
+            UserAwareProvider<SettingsProvider>, AnalyticsProvider>(
+          create: (context) {
+            final expenseProviderWrapper =
+                Provider.of<UserAwareProvider<ExpenseProvider>>(context,
+                    listen: false);
+            return AnalyticsProvider(expenseProviderWrapper.provider);
+          },
+          update: (context, expenseProviderWrapper, settingsProviderWrapper,
+              previous) {
             return previous ??
-                NotificationProvider(expenseProvider, settingsProvider);
+                AnalyticsProvider(expenseProviderWrapper.provider);
           },
         ),
-        // New providers for enhanced features
-        ChangeNotifierProvider(
+        ChangeNotifierProxyProvider2<UserAwareProvider<ExpenseProvider>,
+            UserAwareProvider<SettingsProvider>, NotificationProvider>(
           create: (context) {
-            final user = FirebaseAuth.instance.currentUser;
-            if (user != null) {
-              return AccountProvider(uid: user.uid);
-            }
-            return AccountProvider(uid: 'demo-user');
+            final expenseProviderWrapper =
+                Provider.of<UserAwareProvider<ExpenseProvider>>(context,
+                    listen: false);
+            final settingsProviderWrapper =
+                Provider.of<UserAwareProvider<SettingsProvider>>(context,
+                    listen: false);
+            return NotificationProvider(expenseProviderWrapper.provider,
+                settingsProviderWrapper.provider);
           },
-        ),
-        ChangeNotifierProvider(
-          create: (context) {
-            final user = FirebaseAuth.instance.currentUser;
-            if (user != null) {
-              return TransactionProvider(uid: user.uid);
-            }
-            return TransactionProvider(uid: 'demo-user');
-          },
-        ),
-        ChangeNotifierProvider(
-          create: (context) {
-            final user = FirebaseAuth.instance.currentUser;
-            if (user != null) {
-              return BudgetProvider(uid: user.uid);
-            }
-            return BudgetProvider(uid: 'demo-user');
-          },
-        ),
-        ChangeNotifierProvider(
-          create: (context) {
-            final user = FirebaseAuth.instance.currentUser;
-            if (user != null) {
-              return RecurringProvider(uid: user.uid);
-            }
-            return RecurringProvider(uid: 'demo-user');
+          update: (context, expenseProviderWrapper, settingsProviderWrapper,
+              previous) {
+            return previous ??
+                NotificationProvider(expenseProviderWrapper.provider,
+                    settingsProviderWrapper.provider);
           },
         ),
       ],
@@ -151,7 +210,8 @@ class MyApp extends StatelessWidget {
           theme: ThemeData(
             colorScheme: ColorScheme.fromSeed(
               seedColor: Colors.teal, // Updated to match Firebase theme
-              brightness: Brightness.light,
+              brightness:
+                  settings.isDarkMode ? Brightness.dark : Brightness.light,
             ),
             useMaterial3: true,
           ),

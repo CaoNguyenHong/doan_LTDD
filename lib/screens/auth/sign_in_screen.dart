@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 import '../../auth/auth_repo.dart';
 import 'sign_up_screen.dart';
 import 'forgot_password_screen.dart';
-import '../main_screen.dart';
 
 class SignInScreen extends StatefulWidget {
   const SignInScreen({super.key});
@@ -92,11 +91,8 @@ class _SignInScreenState extends State<SignInScreen>
           ),
         );
 
-        // Clear navigation stack and navigate to main screen
-        Navigator.of(context).pushAndRemoveUntil(
-          MaterialPageRoute(builder: (context) => const MainScreen()),
-          (route) => false,
-        );
+        // Just pop back to AuthGate - it will handle navigation to MainScreen
+        Navigator.of(context).pop();
       }
     } catch (e) {
       setState(() {
