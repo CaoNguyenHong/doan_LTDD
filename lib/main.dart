@@ -13,6 +13,7 @@ import 'package:spend_sage/providers/budget_provider.dart';
 import 'package:spend_sage/providers/recurring_provider.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:spend_sage/auth/auth_gate.dart';
+import 'package:spend_sage/screens/main_screen.dart';
 import 'package:spend_sage/service/api_service.dart';
 import 'package:spend_sage/service/database_service.dart';
 import 'firebase_options.dart';
@@ -163,7 +164,7 @@ class MyApp extends StatelessWidget {
           ),
           themeMode: settings.isDarkMode ? ThemeMode.dark : ThemeMode.light,
           debugShowCheckedModeBanner: false,
-          home: const AuthGate(), // Use AuthGate instead of MainScreen
+          home: const AuthGate(), // Use AuthGate for authentication
         ),
       ),
     );

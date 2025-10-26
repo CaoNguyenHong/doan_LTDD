@@ -43,8 +43,7 @@ class ExpenseProvider with ChangeNotifier {
 
     _transactionRepo = FirestoreTransactionRepo(uid: uid);
 
-    // Watch both expenses and transactions
-    _watchExpenses();
+    // Only watch transactions (main data source)
     _watchTransactions();
   }
 
@@ -54,7 +53,11 @@ class ExpenseProvider with ChangeNotifier {
     // Clear old expenses before switching user
     _expenses = [];
     _error = '';
-    _initializeWithCurrentUser();
+
+    // Only reinitialize if not already initialized
+    if (_transactionRepo == null) {
+      _initializeWithCurrentUser();
+    }
     notifyListeners();
   }
 
@@ -289,31 +292,47 @@ class ExpenseProvider with ChangeNotifier {
 
   /// Watch transactions from Firestore
   void _watchTransactions() {
-    if (_transactionRepo == null) return;
+    if (_transactionRepo == null) {
+      print(
+          '💰 ExpenseProvider: _transactionRepo is null, skipping _watchTransactions');
+      return;
+    }
 
-    _transactionRepo!.watchTransactions().listen(
-      (transactions) {
-        print(
-            '💰 ExpenseProvider: Received ${transactions.length} transactions');
-        // Convert transactions to expenses
-        final transactionExpenses = transactions
-            .where((t) => t.type == 'expense') // Only show expenses
-            .map((t) => TransactionConverter.transactionToExpense(t))
-            .toList();
+    try {
+      _transactionRepo!.watchTransactions().listen(
+        (transactions) {
+          print(
+              '💰 ExpenseProvider: Received ${transactions.length} transactions');
+          // Convert transactions to expenses
+          final transactionExpenses = transactions
+              .where((t) => t.type == 'expense') // Only show expenses
+              .map((t) => TransactionConverter.transactionToExpense(t))
+              .toList();
 
-        // Replace expenses with transaction expenses
-        _expenses = transactionExpenses;
-        _expenses.sort(
-            (a, b) => b.dateTime.compareTo(a.dateTime)); // Sort by date desc
+          // Replace expenses with transaction expenses
+          _expenses = transactionExpenses;
+          _expenses.sort(
+              (a, b) => b.dateTime.compareTo(a.dateTime)); // Sort by date desc
 
-        print(
-            '💰 ExpenseProvider: Updated expenses list with ${_expenses.length} items');
-        notifyListeners();
-      },
-      onError: (error) {
-        print('💰 ExpenseProvider: Error watching transactions: $error');
-      },
-    );
+          print(
+              '💰 ExpenseProvider: Updated expenses list with ${_expenses.length} items');
+          _setLoading(false);
+          notifyListeners();
+        },
+        onError: (error) {
+          print('💰 ExpenseProvider: Error watching transactions: $error');
+          _error = 'Không thể tải dữ liệu: $error';
+          _setLoading(false);
+          notifyListeners();
+        },
+        cancelOnError: false, // Don't cancel on error
+      );
+    } catch (e) {
+      print('💰 ExpenseProvider: Exception in _watchTransactions: $e');
+      _error = 'Lỗi khởi tạo: $e';
+      _setLoading(false);
+      notifyListeners();
+    }
   }
 
   /// Legacy method for Hive (deprecated)

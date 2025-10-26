@@ -41,18 +41,13 @@ class DefaultFirebaseOptions {
   }
 
   static const FirebaseOptions web = FirebaseOptions(
-    apiKey:
-        'AIzaSyBxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx', // TODO(CURSOR): Thay bằng API key thực
-    appId:
-        '1:123456789:web:abcdef123456', // TODO(CURSOR): Thay bằng App ID thực
-    messagingSenderId: '123456789', // TODO(CURSOR): Thay bằng Sender ID thực
-    projectId: 'spend-sage-app', // TODO(CURSOR): Thay bằng Project ID thực
-    authDomain:
-        'spend-sage-app.firebaseapp.com', // TODO(CURSOR): Thay bằng Auth Domain thực
-    storageBucket:
-        'spend-sage-app.appspot.com', // TODO(CURSOR): Thay bằng Storage Bucket thực
-    measurementId:
-        'G-XXXXXXXXXX', // TODO(CURSOR): Thay bằng Measurement ID thực
+    apiKey: 'AIzaSyDvZrp0moYfVzq0bBUoBNm15GMe4Fe-Q7g',
+    appId: '1:19638187607:web:549470e65bebbd0a561512',
+    messagingSenderId: '19638187607',
+    projectId: 'doanltdd-46bd4',
+    authDomain: 'doanltdd-46bd4.firebaseapp.com',
+    storageBucket: 'doanltdd-46bd4.firebasestorage.app',
+    measurementId: 'G-XXXXXXXXXX',
   );
 
   static const FirebaseOptions android = FirebaseOptions(
@@ -64,43 +59,30 @@ class DefaultFirebaseOptions {
   );
 
   static const FirebaseOptions ios = FirebaseOptions(
-    apiKey:
-        'AIzaSyBxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx', // TODO(CURSOR): Thay bằng API key thực
-    appId:
-        '1:123456789:ios:abcdef123456', // TODO(CURSOR): Thay bằng App ID thực
-    messagingSenderId: '123456789', // TODO(CURSOR): Thay bằng Sender ID thực
-    projectId: 'spend-sage-app', // TODO(CURSOR): Thay bằng Project ID thực
-    storageBucket:
-        'spend-sage-app.appspot.com', // TODO(CURSOR): Thay bằng Storage Bucket thực
-    iosBundleId:
-        'com.example.spendSage', // TODO(CURSOR): Thay bằng Bundle ID thực
+    apiKey: 'AIzaSyDvZrp0moYfVzq0bBUoBNm15GMe4Fe-Q7g',
+    appId: '1:19638187607:ios:549470e65bebbd0a561512',
+    messagingSenderId: '19638187607',
+    projectId: 'doanltdd-46bd4',
+    storageBucket: 'doanltdd-46bd4.firebasestorage.app',
+    iosBundleId: 'com.example.spendSage',
   );
 
   static const FirebaseOptions macos = FirebaseOptions(
-    apiKey:
-        'AIzaSyBxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx', // TODO(CURSOR): Thay bằng API key thực
-    appId:
-        '1:123456789:ios:abcdef123456', // TODO(CURSOR): Thay bằng App ID thực
-    messagingSenderId: '123456789', // TODO(CURSOR): Thay bằng Sender ID thực
-    projectId: 'spend-sage-app', // TODO(CURSOR): Thay bằng Project ID thực
-    storageBucket:
-        'spend-sage-app.appspot.com', // TODO(CURSOR): Thay bằng Storage Bucket thực
-    iosBundleId:
-        'com.example.spendSage', // TODO(CURSOR): Thay bằng Bundle ID thực
+    apiKey: 'AIzaSyDvZrp0moYfVzq0bBUoBNm15GMe4Fe-Q7g',
+    appId: '1:19638187607:ios:549470e65bebbd0a561512',
+    messagingSenderId: '19638187607',
+    projectId: 'doanltdd-46bd4',
+    storageBucket: 'doanltdd-46bd4.firebasestorage.app',
+    iosBundleId: 'com.example.spendSage',
   );
 
   static const FirebaseOptions windows = FirebaseOptions(
-    apiKey:
-        'AIzaSyBxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx', // TODO(CURSOR): Thay bằng API key thực
-    appId:
-        '1:123456789:web:abcdef123456', // TODO(CURSOR): Thay bằng App ID thực
-    messagingSenderId: '123456789', // TODO(CURSOR): Thay bằng Sender ID thực
-    projectId: 'spend-sage-app', // TODO(CURSOR): Thay bằng Project ID thực
-    authDomain:
-        'spend-sage-app.firebaseapp.com', // TODO(CURSOR): Thay bằng Auth Domain thực
-    storageBucket:
-        'spend-sage-app.appspot.com', // TODO(CURSOR): Thay bằng Storage Bucket thực
-    measurementId:
-        'G-XXXXXXXXXX', // TODO(CURSOR): Thay bằng Measurement ID thực
+    apiKey: 'AIzaSyDvZrp0moYfVzq0bBUoBNm15GMe4Fe-Q7g',
+    appId: '1:19638187607:web:549470e65bebbd0a561512',
+    messagingSenderId: '19638187607',
+    projectId: 'doanltdd-46bd4',
+    authDomain: 'doanltdd-46bd4.firebaseapp.com',
+    storageBucket: 'doanltdd-46bd4.firebasestorage.app',
+    measurementId: 'G-XXXXXXXXXX',
   );
 }
