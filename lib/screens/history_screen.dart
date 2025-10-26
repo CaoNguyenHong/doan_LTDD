@@ -65,11 +65,8 @@ class _HistoryScreenState extends State<HistoryScreen> {
           ),
         ],
       ),
-      body: Builder(
-        builder: (context) {
-          final transactionProvider = context.watch<TransactionProvider>();
-          final settingsProvider = context.watch<SettingsProvider>();
-
+      body: Consumer2<TransactionProvider, SettingsProvider>(
+        builder: (context, transactionProvider, settingsProvider, child) {
           final transactions =
               _getFilteredTransactions(transactionProvider.items);
           final groupedTransactions = _groupTransactionsByDate(transactions);
@@ -521,6 +518,7 @@ class _HistoryScreenState extends State<HistoryScreen> {
   void _showTransactionOptions(models.Transaction transaction) {
     showModalBottomSheet(
       context: context,
+      useRootNavigator: false,
       builder: (BuildContext context) {
         return SafeArea(
           child: Column(
@@ -553,6 +551,7 @@ class _HistoryScreenState extends State<HistoryScreen> {
   void _editTransaction(models.Transaction transaction) {
     showModalBottomSheet(
       context: context,
+      useRootNavigator: false,
       isScrollControlled: true,
       backgroundColor: Colors.transparent,
       builder: (context) => TransactionEditSheet(transaction: transaction),
