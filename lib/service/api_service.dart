@@ -4,10 +4,10 @@ import 'dart:convert';
 class AIService {
   final GenerativeModel model;
 
-  AIService({required String apiKey})
+  AIService({String? apiKey})
       : model = GenerativeModel(
           model: 'gemini-1.5-flash-8b',
-          apiKey: apiKey,
+          apiKey: apiKey ?? 'demo-key', // TODO(CURSOR): Set actual API key
         );
 
   Future<Map<String, dynamic>> processExpenseInput(String input) async {

@@ -354,7 +354,7 @@ class _TransactionEditSheetState extends State<TransactionEditSheet> {
       );
 
       await Provider.of<TransactionProvider>(context, listen: false)
-          .updateTransaction(updatedTransaction.id, updatedTransaction);
+          .updateTransaction(updatedTransaction);
 
       if (mounted) {
         Navigator.pop(context);

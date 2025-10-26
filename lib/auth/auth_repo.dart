@@ -1,8 +1,10 @@
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 // import 'package:google_sign_in/google_sign_in.dart'; // TODO(CURSOR): Fix Google Sign-in
 
 class AuthRepo {
   final FirebaseAuth _auth = FirebaseAuth.instance;
+  final FirebaseFirestore _firestore = FirebaseFirestore.instance;
   // final GoogleSignIn _googleSignIn = GoogleSignIn(); // TODO(CURSOR): Fix Google Sign-in
 
   /// Stream of authentication state changes
@@ -11,16 +13,49 @@ class AuthRepo {
   /// Current user
   User? get user => _auth.currentUser;
 
-  /// Sign up with email and password
-  Future<UserCredential> signUpEmail(String email, String password) async {
+  /// Sign up with email and password and create user profile
+  Future<UserCredential> signUpAndCreateProfile({
+    required String email,
+    required String password,
+    String? displayName,
+  }) async {
     try {
-      return await _auth.createUserWithEmailAndPassword(
+      final cred = await _auth.createUserWithEmailAndPassword(
         email: email,
         password: password,
       );
+
+      final uid = cred.user!.uid;
+      final userDoc = _firestore.collection('users').doc(uid);
+
+      // Create user profile (idempotent)
+      await _firestore.runTransaction((tx) async {
+        final snap = await tx.get(userDoc);
+        if (!snap.exists) {
+          tx.set(userDoc, {
+            'displayName': displayName ?? '',
+            'currency': 'VND', // TODO(CURSOR): Set default currency
+            'darkMode': false,
+            'createdAt': FieldValue.serverTimestamp(),
+            'updatedAt': FieldValue.serverTimestamp(),
+          });
+        }
+      });
+
+      // Update displayName (optional)
+      if (displayName != null && displayName.isNotEmpty) {
+        await cred.user!.updateDisplayName(displayName);
+      }
+
+      return cred;
     } on FirebaseAuthException catch (e) {
       throw _handleAuthException(e);
     }
+  }
+
+  /// Sign up with email and password (legacy method)
+  Future<UserCredential> signUpEmail(String email, String password) async {
+    return signUpAndCreateProfile(email: email, password: password);
   }
 
   /// Sign in with email and password
@@ -47,7 +82,8 @@ class AuthRepo {
   /// Sign in with Google
   /// TODO(CURSOR): Fix Google Sign-in implementation
   Future<UserCredential> signInGoogle() async {
-    throw Exception('Google Sign-in not implemented yet. Please use email/password authentication.');
+    throw Exception(
+        'Google Sign-in not implemented yet. Please use email/password authentication.');
   }
 
   /// Sign out

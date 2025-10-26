@@ -30,7 +30,7 @@ class AnalyticsProvider with ChangeNotifier {
   void _onExpensesChanged() {
     print('📊 AnalyticsProvider: Expenses changed, updating analytics...');
     _expenses = _expenseProvider.expenses;
-    _error = _expenseProvider.error;
+    _error = _expenseProvider.error ?? '';
     _setLoading(_expenseProvider.isLoading);
     notifyListeners();
   }

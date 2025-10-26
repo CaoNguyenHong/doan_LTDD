@@ -73,6 +73,12 @@ class CurrencyService {
     return amount * rate;
   }
 
+  /// Alias for convertAmount (for backward compatibility)
+  static Future<double> convertCurrency(
+      double amount, String fromCurrency, String toCurrency) async {
+    return convertAmount(amount, fromCurrency, toCurrency);
+  }
+
   /// Get currency symbol
   static String getCurrencySymbol(String currencyCode) {
     switch (currencyCode) {

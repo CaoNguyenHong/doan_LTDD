@@ -29,7 +29,7 @@ class _SpendingLimitWidgetState extends State<SpendingLimitWidget> {
       builder: (context, transactionProvider, settingsProvider, child) {
         final transactions = transactionProvider.transactions;
         final spendingLimit =
-            settingsProvider.getSpendingLimit(_selectedPeriod.name);
+            settingsProvider.getSpendingLimitCompat(_selectedPeriod.name);
 
         // Calculate totals for selected period
         final totals =

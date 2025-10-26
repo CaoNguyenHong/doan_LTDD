@@ -167,7 +167,7 @@ class _ProfileScreenState extends State<ProfileScreen>
                               'Bật/tắt giao diện tối',
                               Icons.dark_mode,
                               settings.isDarkMode,
-                              settings.setDarkMode,
+                              settings.setDarkModeCompat,
                             ),
                           ],
                         ),

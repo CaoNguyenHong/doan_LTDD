@@ -8,6 +8,7 @@ import '../providers/analytics_provider.dart';
 import '../providers/notification_provider.dart';
 import '../providers/settings_provider.dart';
 import '../providers/transaction_provider.dart';
+import '../providers/account_provider.dart';
 import '../models/transaction.dart' as models;
 import '../utils/currency_formatter.dart';
 import 'transaction_add_sheet.dart';
@@ -52,11 +53,35 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
 
   void _showAddExpenseDialog(
       BuildContext context, ExpenseProvider expenseProvider) {
+    _showTransactionAddSheet(context);
+  }
+
+  void _showTransactionAddSheet(BuildContext context) {
+    // LẤY CÁC INSTANCE HIỆN CÓ TỪ CÂY WIDGET
+    final accountProvider = context.read<AccountProvider>();
+    final transactionProvider = context.read<TransactionProvider>();
+    final settingsProvider = context.read<SettingsProvider>();
+
     showModalBottomSheet(
       context: context,
+      useRootNavigator: false, // ❗ Giữ FALSE để sheet cùng scope Provider
       isScrollControlled: true,
       backgroundColor: Colors.transparent,
-      builder: (context) => const TransactionAddSheet(),
+      builder: (_) {
+        // Truyền lại CHÍNH CÁC INSTANCE đang dùng bằng .value (không tạo mới)
+        return MultiProvider(
+          providers: [
+            ChangeNotifierProvider<AccountProvider>.value(
+                value: accountProvider),
+            ChangeNotifierProvider<TransactionProvider>.value(
+                value: transactionProvider),
+            ChangeNotifierProvider<SettingsProvider>.value(
+                value: settingsProvider),
+          ],
+          child:
+              const TransactionAddSheet(), // Không truyền context/read<User> ở đây
+        );
+      },
     );
   }
 
@@ -240,22 +265,24 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
 
                   // Recent Transactions Header
                   Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
-                      Text(
-                        'Giao dịch gần đây',
-                        style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                              fontWeight: FontWeight.bold,
-                              color: Theme.of(context).colorScheme.onSurface,
-                            ),
-                      ),
-                      TextButton(
-                        onPressed: () => showModalBottomSheet(
-                          context: context,
-                          isScrollControlled: true,
-                          backgroundColor: Colors.transparent,
-                          builder: (context) => const TransactionAddSheet(),
+                      Expanded(
+                        child: Text(
+                          'Giao dịch gần đây',
+                          style: Theme.of(context)
+                              .textTheme
+                              .titleLarge
+                              ?.copyWith(
+                                fontWeight: FontWeight.bold,
+                                color: Theme.of(context).colorScheme.onSurface,
+                              ),
+                          overflow: TextOverflow.ellipsis,
+                          maxLines: 1,
                         ),
+                      ),
+                      const SizedBox(width: 8),
+                      TextButton(
+                        onPressed: () => _showTransactionAddSheet(context),
                         child: Text(
                           'Thêm mới',
                           style: TextStyle(
@@ -276,7 +303,7 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
                         return const Center(child: CircularProgressIndicator());
                       }
 
-                      if (transactionProvider.error.isNotEmpty) {
+                      if (transactionProvider.error?.isNotEmpty == true) {
                         return Center(
                             child: Text('Lỗi: ${transactionProvider.error}'));
                       }
@@ -331,13 +358,8 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
                               ),
                               const SizedBox(height: 20),
                               ElevatedButton.icon(
-                                onPressed: () => showModalBottomSheet(
-                                  context: context,
-                                  isScrollControlled: true,
-                                  backgroundColor: Colors.transparent,
-                                  builder: (context) =>
-                                      const TransactionAddSheet(),
-                                ),
+                                onPressed: () =>
+                                    _showTransactionAddSheet(context),
                                 icon: const Icon(Icons.add),
                                 label: const Text('Thêm giao dịch'),
                                 style: ElevatedButton.styleFrom(

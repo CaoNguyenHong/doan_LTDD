@@ -1,154 +1,200 @@
 import 'package:flutter/foundation.dart';
 import '../models/budget.dart';
-import '../data/firestore_budget_repo.dart';
+import '../data/firestore_data_source.dart';
 
-class BudgetProvider with ChangeNotifier {
-  final String uid;
-  final FirestoreBudgetRepo _budgetRepo;
+class BudgetProvider extends ChangeNotifier {
+  final FirestoreDataSource _ds;
+  final String _uid;
 
-  List<Budget> _budgets = [];
-  bool _isLoading = false;
-  String _error = '';
-
-  BudgetProvider({required this.uid})
-      : _budgetRepo = FirestoreBudgetRepo(uid: uid) {
-    _watchBudgets();
+  BudgetProvider(this._ds, this._uid) {
+    _watch();
   }
 
-  List<Budget> get budgets => _budgets;
-  bool get isLoading => _isLoading;
-  String get error => _error;
+  List<Budget> _items = [];
+  bool _loading = true;
+  String? _error;
 
-  void _watchBudgets() {
-    _setLoading(true);
-    _budgetRepo.watchBudgets().listen(
-      (budgets) {
-        _budgets = budgets;
-        _error = '';
-        _setLoading(false);
-        notifyListeners();
-      },
-      onError: (error) {
-        _error = 'Không thể tải danh sách ngân sách: $error';
-        _setLoading(false);
-        notifyListeners();
-      },
-    );
+  List<Budget> get items => _items;
+  bool get isLoading => _loading;
+  String? get error => _error;
+
+  void _watch() {
+    _loading = true;
+    notifyListeners();
+    _ds.watchBudgets(_uid).listen((rows) {
+      _items = rows.map((data) => Budget.fromMap(data['id'], data)).toList();
+      _loading = false;
+      _error = null;
+      notifyListeners();
+    }, onError: (e) {
+      _error = e.toString();
+      _loading = false;
+      notifyListeners();
+    });
+  }
+
+  Future<void> add({
+    required String period,
+    required String categoryId,
+    required double limit,
+    String? month,
+  }) async {
+    await _ds.addBudget(_uid, {
+      'period': period,
+      'categoryId': categoryId,
+      'limit': limit,
+      'spent': 0.0,
+      'month': month,
+    });
   }
 
   Future<void> addBudget(Budget budget) async {
-    _setLoading(true);
-    try {
-      await _budgetRepo.addBudget(budget);
-      _error = '';
-    } catch (e) {
-      _error = 'Không thể thêm ngân sách: $e';
-    }
-    _setLoading(false);
-    notifyListeners();
+    await _ds.addBudget(_uid, budget.toMap());
   }
 
-  Future<void> updateBudget(String budgetId, Budget budget) async {
-    _setLoading(true);
-    try {
-      await _budgetRepo.updateBudget(budgetId, budget);
-      _error = '';
-    } catch (e) {
-      _error = 'Không thể cập nhật ngân sách: $e';
-    }
-    _setLoading(false);
-    notifyListeners();
+  Future<void> updateBudget(Budget budget) async {
+    await _ds.updateBudget(_uid, budget.id, budget.toMap());
   }
 
-  Future<void> deleteBudget(String budgetId) async {
-    _setLoading(true);
-    try {
-      await _budgetRepo.deleteBudget(budgetId);
-      _error = '';
-    } catch (e) {
-      _error = 'Không thể xóa ngân sách: $e';
-    }
-    _setLoading(false);
-    notifyListeners();
+  Future<void> deleteBudget(String id) => _ds.softDeleteBudget(_uid, id);
+
+  Future<void> updateSpent(String id, double spent) async {
+    await _ds.updateBudget(_uid, id, {'spent': spent});
   }
 
-  Future<void> updateBudgetSpent(String budgetId, double spent) async {
-    _setLoading(true);
-    try {
-      await _budgetRepo.updateBudgetSpent(budgetId, spent);
-      _error = '';
-    } catch (e) {
-      _error = 'Không thể cập nhật số tiền đã chi: $e';
-    }
-    _setLoading(false);
-    notifyListeners();
-  }
+  // Legacy methods for backward compatibility
+  List<Budget> get budgets => _items;
 
+  // Additional methods
   List<Budget> getBudgetsByPeriod(String period) {
-    return _budgets.where((budget) => budget.period == period).toList();
+    return _items.where((budget) => budget.period == period).toList();
   }
 
   List<Budget> getBudgetsByCategory(String categoryId) {
-    return _budgets.where((budget) => budget.categoryId == categoryId).toList();
+    return _items.where((budget) => budget.categoryId == categoryId).toList();
   }
 
   List<Budget> getBudgetsByMonth(String month) {
-    return _budgets.where((budget) => budget.month == month).toList();
+    return _items.where((budget) => budget.month == month).toList();
   }
 
   List<Budget> getOverBudgetBudgets() {
-    return _budgets.where((budget) => budget.isOverBudget).toList();
+    return _items.where((budget) => budget.isOverBudget).toList();
   }
 
   List<Budget> getNearLimitBudgets() {
-    return _budgets.where((budget) => budget.isNearLimit).toList();
+    return _items.where((budget) => budget.isNearLimit).toList();
   }
 
-  List<Budget> getWarningBudgets() {
-    return _budgets.where((budget) => budget.isWarning).toList();
+  double getTotalLimit() {
+    return _items.fold(0.0, (sum, budget) => sum + budget.limit);
+  }
+
+  double getTotalSpent() {
+    return _items.fold(0.0, (sum, budget) => sum + budget.spent);
+  }
+
+  double getTotalRemaining() {
+    return _items.fold(0.0, (sum, budget) => sum + budget.remaining);
+  }
+
+  double getTotalLimitByPeriod(String period) {
+    return _items
+        .where((budget) => budget.period == period)
+        .fold(0.0, (sum, budget) => sum + budget.limit);
+  }
+
+  double getTotalSpentByPeriod(String period) {
+    return _items
+        .where((budget) => budget.period == period)
+        .fold(0.0, (sum, budget) => sum + budget.spent);
+  }
+
+  double getTotalLimitByCategory(String categoryId) {
+    return _items
+        .where((budget) => budget.categoryId == categoryId)
+        .fold(0.0, (sum, budget) => sum + budget.limit);
+  }
+
+  double getTotalSpentByCategory(String categoryId) {
+    return _items
+        .where((budget) => budget.categoryId == categoryId)
+        .fold(0.0, (sum, budget) => sum + budget.spent);
+  }
+
+  Map<String, double> getTotalsByPeriod() {
+    final Map<String, double> totals = {};
+    for (final budget in _items) {
+      totals[budget.period] = (totals[budget.period] ?? 0) + budget.limit;
+    }
+    return totals;
+  }
+
+  Map<String, double> getSpentByPeriod() {
+    final Map<String, double> totals = {};
+    for (final budget in _items) {
+      totals[budget.period] = (totals[budget.period] ?? 0) + budget.spent;
+    }
+    return totals;
+  }
+
+  Map<String, double> getTotalsByCategory() {
+    final Map<String, double> totals = {};
+    for (final budget in _items) {
+      totals[budget.categoryId ?? 'unknown'] =
+          (totals[budget.categoryId ?? 'unknown'] ?? 0) + budget.limit;
+    }
+    return totals;
+  }
+
+  Map<String, double> getSpentByCategory() {
+    final Map<String, double> totals = {};
+    for (final budget in _items) {
+      totals[budget.categoryId ?? 'unknown'] =
+          (totals[budget.categoryId ?? 'unknown'] ?? 0) + budget.spent;
+    }
+    return totals;
+  }
+
+  double getUtilizationPercentage() {
+    final totalLimit = getTotalLimit();
+    if (totalLimit == 0) return 0.0;
+    return (getTotalSpent() / totalLimit) * 100;
+  }
+
+  double getUtilizationPercentageByPeriod(String period) {
+    final totalLimit = getTotalLimitByPeriod(period);
+    if (totalLimit == 0) return 0.0;
+    return (getTotalSpentByPeriod(period) / totalLimit) * 100;
+  }
+
+  double getUtilizationPercentageByCategory(String categoryId) {
+    final totalLimit = getTotalLimitByCategory(categoryId);
+    if (totalLimit == 0) return 0.0;
+    return (getTotalSpentByCategory(categoryId) / totalLimit) * 100;
+  }
+
+  // Additional methods for backward compatibility
+  bool hasOverBudget() {
+    return _items.any((budget) => budget.isOverBudget);
+  }
+
+  bool hasNearLimit() {
+    return _items.any((budget) => budget.isNearLimit);
   }
 
   double getTotalBudgetLimit() {
-    return _budgets.fold(0.0, (sum, budget) => sum + budget.limit);
+    return _items.fold(0.0, (sum, budget) => sum + budget.limit);
   }
 
   double getTotalBudgetSpent() {
-    return _budgets.fold(0.0, (sum, budget) => sum + budget.spent);
-  }
-
-  double getTotalBudgetRemaining() {
-    return getTotalBudgetLimit() - getTotalBudgetSpent();
+    return _items.fold(0.0, (sum, budget) => sum + budget.spent);
   }
 
   double getBudgetUtilizationPercentage() {
     final totalLimit = getTotalBudgetLimit();
-    if (totalLimit == 0) return 0;
-    return (getTotalBudgetSpent() / totalLimit) * 100;
-  }
-
-  Map<String, double> getBudgetBreakdown() {
-    final Map<String, double> breakdown = {};
-    for (var budget in _budgets) {
-      final key = budget.categoryId ?? 'global';
-      breakdown[key] = (breakdown[key] ?? 0) + budget.spent;
-    }
-    return breakdown;
-  }
-
-  bool hasOverBudget() {
-    return _budgets.any((budget) => budget.isOverBudget);
-  }
-
-  bool hasNearLimit() {
-    return _budgets.any((budget) => budget.isNearLimit);
-  }
-
-  bool hasWarning() {
-    return _budgets.any((budget) => budget.isWarning);
-  }
-
-  void _setLoading(bool value) {
-    _isLoading = value;
-    notifyListeners();
+    final totalSpent = getTotalBudgetSpent();
+    if (totalLimit == 0) return 0.0;
+    return (totalSpent / totalLimit) * 100;
   }
 }

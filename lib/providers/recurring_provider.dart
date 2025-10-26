@@ -1,176 +1,197 @@
 import 'package:flutter/foundation.dart';
 import '../models/recurring.dart';
-import '../data/firestore_recurring_repo.dart';
+import '../data/firestore_data_source.dart';
 
-class RecurringProvider with ChangeNotifier {
-  final String uid;
-  final FirestoreRecurringRepo _recurringRepo;
+class RecurringProvider extends ChangeNotifier {
+  final FirestoreDataSource _ds;
+  final String _uid;
 
-  List<Recurring> _recurrings = [];
-  bool _isLoading = false;
-  String _error = '';
-
-  RecurringProvider({required this.uid})
-      : _recurringRepo = FirestoreRecurringRepo(uid: uid) {
-    _watchRecurrings();
+  RecurringProvider(this._ds, this._uid) {
+    _watch();
   }
 
-  List<Recurring> get recurrings => _recurrings;
-  bool get isLoading => _isLoading;
-  String get error => _error;
+  List<Recurring> _items = [];
+  bool _loading = true;
+  String? _error;
 
-  void _watchRecurrings() {
-    _setLoading(true);
-    _recurringRepo.watchRecurrings().listen(
-      (recurrings) {
-        _recurrings = recurrings;
-        _error = '';
-        _setLoading(false);
-        notifyListeners();
-      },
-      onError: (error) {
-        _error = 'Không thể tải danh sách giao dịch định kỳ: $error';
-        _setLoading(false);
-        notifyListeners();
-      },
-    );
+  List<Recurring> get items => _items;
+  bool get isLoading => _loading;
+  String? get error => _error;
+
+  void _watch() {
+    _loading = true;
+    notifyListeners();
+    _ds.watchRecurring(_uid).listen((rows) {
+      _items = rows.map((data) => Recurring.fromMap(data['id'], data)).toList();
+      _loading = false;
+      _error = null;
+      notifyListeners();
+    }, onError: (e) {
+      _error = e.toString();
+      _loading = false;
+      notifyListeners();
+    });
+  }
+
+  Future<void> add({
+    required String rule,
+    required Map<String, dynamic> templateTx,
+    DateTime? nextRun,
+    bool active = true,
+  }) async {
+    await _ds.addRecurring(_uid, {
+      'rule': rule,
+      'templateTx': templateTx,
+      'nextRun': nextRun?.toUtc(),
+      'active': active,
+    });
   }
 
   Future<void> addRecurring(Recurring recurring) async {
-    _setLoading(true);
-    try {
-      await _recurringRepo.addRecurring(recurring);
-      _error = '';
-    } catch (e) {
-      _error = 'Không thể thêm giao dịch định kỳ: $e';
-    }
-    _setLoading(false);
-    notifyListeners();
+    await _ds.addRecurring(_uid, recurring.toMap());
   }
 
-  Future<void> updateRecurring(String recurringId, Recurring recurring) async {
-    _setLoading(true);
-    try {
-      await _recurringRepo.updateRecurring(recurringId, recurring);
-      _error = '';
-    } catch (e) {
-      _error = 'Không thể cập nhật giao dịch định kỳ: $e';
-    }
-    _setLoading(false);
-    notifyListeners();
+  Future<void> updateRecurring(Recurring recurring) async {
+    await _ds.updateRecurring(_uid, recurring.id, recurring.toMap());
   }
 
-  Future<void> deleteRecurring(String recurringId) async {
-    _setLoading(true);
-    try {
-      await _recurringRepo.deleteRecurring(recurringId);
-      _error = '';
-    } catch (e) {
-      _error = 'Không thể xóa giao dịch định kỳ: $e';
-    }
-    _setLoading(false);
-    notifyListeners();
+  Future<void> deleteRecurring(String id) => _ds.softDeleteRecurring(_uid, id);
+
+  Future<void> updateNextRun(String id, DateTime nextRun) async {
+    await _ds.updateRecurring(_uid, id, {'nextRun': nextRun.toUtc()});
   }
 
-  Future<void> toggleRecurring(String recurringId, bool active) async {
-    _setLoading(true);
-    try {
-      await _recurringRepo.toggleRecurring(recurringId, active);
-      _error = '';
-    } catch (e) {
-      _error = 'Không thể thay đổi trạng thái giao dịch định kỳ: $e';
-    }
-    _setLoading(false);
-    notifyListeners();
+  Future<void> toggleActive(String id, bool active) async {
+    await _ds.updateRecurring(_uid, id, {'active': active});
   }
 
-  Future<void> updateNextRun(String recurringId, DateTime nextRun) async {
-    _setLoading(true);
-    try {
-      await _recurringRepo.updateNextRun(recurringId, nextRun);
-      _error = '';
-    } catch (e) {
-      _error = 'Không thể cập nhật lần chạy tiếp theo: $e';
-    }
-    _setLoading(false);
-    notifyListeners();
-  }
+  // Legacy methods for backward compatibility
+  List<Recurring> get recurrings => _items;
 
+  // Additional methods
   List<Recurring> getActiveRecurrings() {
-    return _recurrings.where((recurring) => recurring.active).toList();
+    return _items.where((recurring) => recurring.active).toList();
   }
 
   List<Recurring> getInactiveRecurrings() {
-    return _recurrings.where((recurring) => !recurring.active).toList();
+    return _items.where((recurring) => !recurring.active).toList();
   }
 
-  List<Recurring> getDueRecurrings() {
-    return _recurrings.where((recurring) => recurring.isDueToday).toList();
+  List<Recurring> getDueTodayRecurrings() {
+    return _items.where((recurring) => recurring.isDueToday).toList();
   }
 
   List<Recurring> getOverdueRecurrings() {
-    return _recurrings.where((recurring) => recurring.isOverdue).toList();
-  }
-
-  List<Recurring> getUpcomingRecurrings() {
-    return _recurrings
-        .where((recurring) =>
-            recurring.active && !recurring.isDueToday && !recurring.isOverdue)
-        .toList();
+    return _items.where((recurring) => recurring.isOverdue).toList();
   }
 
   List<Recurring> getRecurringsByFrequency(String frequency) {
-    return _recurrings
+    return _items
         .where((recurring) => recurring.frequency == frequency)
         .toList();
   }
 
   List<Recurring> getRecurringsByType(String type) {
-    return _recurrings
+    return _items
         .where((recurring) => recurring.templateTx.type == type)
         .toList();
   }
 
-  int getActiveRecurringsCount() {
-    return _recurrings.where((recurring) => recurring.active).length;
+  List<Recurring> getRecurringsByAccount(String accountId) {
+    return _items
+        .where((recurring) => recurring.templateTx.accountId == accountId)
+        .toList();
   }
 
-  int getDueRecurringsCount() {
-    return _recurrings.where((recurring) => recurring.isDueToday).length;
+  List<Recurring> getRecurringsByCategory(String categoryId) {
+    return _items
+        .where((recurring) => recurring.templateTx.categoryId == categoryId)
+        .toList();
   }
 
-  int getOverdueRecurringsCount() {
-    return _recurrings.where((recurring) => recurring.isOverdue).length;
-  }
-
-  bool hasDueRecurrings() {
-    return _recurrings.any((recurring) => recurring.isDueToday);
-  }
-
-  bool hasOverdueRecurrings() {
-    return _recurrings.any((recurring) => recurring.isOverdue);
-  }
-
-  Map<String, int> getFrequencyBreakdown() {
-    final Map<String, int> breakdown = {};
-    for (var recurring in _recurrings) {
-      final frequency = recurring.frequency;
-      breakdown[frequency] = (breakdown[frequency] ?? 0) + 1;
+  Map<String, int> getCountByFrequency() {
+    final Map<String, int> counts = {};
+    for (final recurring in _items) {
+      counts[recurring.frequency] = (counts[recurring.frequency] ?? 0) + 1;
     }
-    return breakdown;
+    return counts;
   }
 
-  Map<String, int> getTypeBreakdown() {
-    final Map<String, int> breakdown = {};
-    for (var recurring in _recurrings) {
-      final type = recurring.templateTx.type;
-      breakdown[type] = (breakdown[type] ?? 0) + 1;
+  Map<String, int> getCountByType() {
+    final Map<String, int> counts = {};
+    for (final recurring in _items) {
+      counts[recurring.templateTx.type] =
+          (counts[recurring.templateTx.type] ?? 0) + 1;
     }
-    return breakdown;
+    return counts;
   }
 
-  void _setLoading(bool value) {
-    _isLoading = value;
-    notifyListeners();
+  Map<String, double> getTotalsByType() {
+    final Map<String, double> totals = {};
+    for (final recurring in _items) {
+      totals[recurring.templateTx.type] =
+          (totals[recurring.templateTx.type] ?? 0) +
+              recurring.templateTx.amount;
+    }
+    return totals;
+  }
+
+  Map<String, double> getTotalsByAccount() {
+    final Map<String, double> totals = {};
+    for (final recurring in _items) {
+      totals[recurring.templateTx.accountId] =
+          (totals[recurring.templateTx.accountId] ?? 0) +
+              recurring.templateTx.amount;
+    }
+    return totals;
+  }
+
+  Map<String, double> getTotalsByCategory() {
+    final Map<String, double> totals = {};
+    for (final recurring in _items) {
+      totals[recurring.templateTx.categoryId ?? 'unknown'] =
+          (totals[recurring.templateTx.categoryId ?? 'unknown'] ?? 0) +
+              recurring.templateTx.amount;
+    }
+    return totals;
+  }
+
+  double getTotalAmount() {
+    return _items.fold(
+        0.0, (sum, recurring) => sum + recurring.templateTx.amount);
+  }
+
+  double getTotalAmountByType(String type) {
+    return _items
+        .where((recurring) => recurring.templateTx.type == type)
+        .fold(0.0, (sum, recurring) => sum + recurring.templateTx.amount);
+  }
+
+  double getTotalAmountByAccount(String accountId) {
+    return _items
+        .where((recurring) => recurring.templateTx.accountId == accountId)
+        .fold(0.0, (sum, recurring) => sum + recurring.templateTx.amount);
+  }
+
+  double getTotalAmountByCategory(String categoryId) {
+    return _items
+        .where((recurring) => recurring.templateTx.categoryId == categoryId)
+        .fold(0.0, (sum, recurring) => sum + recurring.templateTx.amount);
+  }
+
+  int getActiveCount() {
+    return _items.where((recurring) => recurring.active).length;
+  }
+
+  int getInactiveCount() {
+    return _items.where((recurring) => !recurring.active).length;
+  }
+
+  int getDueTodayCount() {
+    return _items.where((recurring) => recurring.isDueToday).length;
+  }
+
+  int getOverdueCount() {
+    return _items.where((recurring) => recurring.isOverdue).length;
   }
 }

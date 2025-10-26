@@ -57,24 +57,40 @@ class Transaction {
     };
   }
 
-  factory Transaction.fromMap(String id, Map<String, dynamic> map) {
+  factory Transaction.fromMap(String id, Map<String, dynamic> data) {
     return Transaction(
       id: id,
-      type: map['type'] ?? 'expense',
-      accountId: map['accountId'] ?? '',
-      toAccountId: map['toAccountId'],
-      categoryId: map['categoryId'],
-      amount: (map['amount'] ?? 0.0).toDouble(),
-      currency: map['currency'] ?? 'USD',
-      description: map['description'] ?? '',
-      merchantId: map['merchantId'],
-      tags: List<String>.from(map['tags'] ?? []),
-      dateTime: (map['dateTime'] as Timestamp).toDate(),
-      createdAt: (map['createdAt'] as Timestamp).toDate(),
-      updatedAt: (map['updatedAt'] as Timestamp).toDate(),
-      deleted: map['deleted'] ?? false,
-      attachmentUrl: map['attachmentUrl'],
-      isAdjustment: map['isAdjustment'] ?? false,
+      type: (data['type'] as String?) ?? 'expense',
+      accountId: (data['accountId'] as String?) ?? '',
+      toAccountId: data['toAccountId'] as String?,
+      categoryId: data['categoryId'] as String?,
+      amount:
+          (data['amount'] is num) ? (data['amount'] as num).toDouble() : 0.0,
+      currency: (data['currency'] as String?) ?? 'USD',
+      description: (data['description'] as String?) ?? '',
+      merchantId: data['merchantId'] as String?,
+      tags: List<String>.from(data['tags'] ?? []),
+      dateTime: () {
+        final raw = data['dateTime'];
+        if (raw is Timestamp) return raw.toDate();
+        if (raw is String) return DateTime.tryParse(raw) ?? DateTime.now();
+        return DateTime.now();
+      }(),
+      createdAt: () {
+        final raw = data['createdAt'];
+        if (raw is Timestamp) return raw.toDate();
+        if (raw is String) return DateTime.tryParse(raw) ?? DateTime.now();
+        return DateTime.now();
+      }(),
+      updatedAt: () {
+        final raw = data['updatedAt'];
+        if (raw is Timestamp) return raw.toDate();
+        if (raw is String) return DateTime.tryParse(raw) ?? DateTime.now();
+        return DateTime.now();
+      }(),
+      deleted: (data['deleted'] as bool?) ?? false,
+      attachmentUrl: data['attachmentUrl'] as String?,
+      isAdjustment: (data['isAdjustment'] as bool?) ?? false,
     );
   }
 

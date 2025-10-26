@@ -17,7 +17,10 @@ class TransactionAddSheet extends StatefulWidget {
 class _TransactionAddSheetState extends State<TransactionAddSheet>
     with SingleTickerProviderStateMixin {
   late TabController _tabController;
-  final _formKey = GlobalKey<FormState>();
+  final _expenseFormKey = GlobalKey<FormState>();
+  final _incomeFormKey = GlobalKey<FormState>();
+  final _transferFormKey = GlobalKey<FormState>();
+  final _refundFormKey = GlobalKey<FormState>();
 
   // Controllers
   final _amountController = TextEditingController();
@@ -191,6 +194,8 @@ class _TransactionAddSheetState extends State<TransactionAddSheet>
       title: 'Thêm chi tiêu',
       icon: Icons.remove_circle_outline,
       color: Colors.red,
+      accounts: context.watch<AccountProvider>().accounts,
+      formKey: _expenseFormKey,
     );
   }
 
@@ -199,6 +204,8 @@ class _TransactionAddSheetState extends State<TransactionAddSheet>
       title: 'Thêm thu nhập',
       icon: Icons.add_circle_outline,
       color: Colors.green,
+      accounts: context.watch<AccountProvider>().accounts,
+      formKey: _incomeFormKey,
     );
   }
 
@@ -207,6 +214,8 @@ class _TransactionAddSheetState extends State<TransactionAddSheet>
       title: 'Chuyển khoản',
       icon: Icons.swap_horiz,
       color: Colors.blue,
+      accounts: context.watch<AccountProvider>().accounts,
+      formKey: _transferFormKey,
       showToAccount: true,
     );
   }
@@ -216,6 +225,8 @@ class _TransactionAddSheetState extends State<TransactionAddSheet>
       title: 'Hoàn tiền',
       icon: Icons.reply,
       color: Colors.orange,
+      accounts: context.watch<AccountProvider>().accounts,
+      formKey: _refundFormKey,
     );
   }
 
@@ -223,237 +234,259 @@ class _TransactionAddSheetState extends State<TransactionAddSheet>
     required String title,
     required IconData icon,
     required Color color,
+    required List accounts,
+    required GlobalKey<FormState> formKey,
     bool showToAccount = false,
   }) {
-    return Consumer<AccountProvider>(
-      builder: (context, accountProvider, _) {
-        return SingleChildScrollView(
-          padding: const EdgeInsets.all(20),
-          child: Form(
-            key: _formKey,
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                // Amount field
-                TextFormField(
-                  controller: _amountController,
-                  keyboardType: TextInputType.numberWithOptions(decimal: true),
-                  decoration: InputDecoration(
-                    labelText: 'Số tiền',
-                    prefixIcon: Icon(Icons.attach_money, color: color),
-                    border: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(12),
-                    ),
-                  ),
-                  validator: (value) {
-                    if (value == null || value.isEmpty) {
-                      return 'Vui lòng nhập số tiền';
-                    }
-                    if (double.tryParse(value) == null) {
-                      return 'Số tiền không hợp lệ';
-                    }
-                    return null;
-                  },
+    return SingleChildScrollView(
+      padding: const EdgeInsets.all(20),
+      child: Form(
+        key: formKey,
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            // Amount field
+            TextFormField(
+              controller: _amountController,
+              keyboardType: TextInputType.numberWithOptions(decimal: true),
+              decoration: InputDecoration(
+                labelText: 'Số tiền',
+                prefixIcon: Icon(Icons.attach_money, color: color),
+                border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(12),
                 ),
-                const SizedBox(height: 16),
+              ),
+              validator: (value) {
+                if (value == null || value.isEmpty) {
+                  return 'Vui lòng nhập số tiền';
+                }
+                if (double.tryParse(value) == null) {
+                  return 'Số tiền không hợp lệ';
+                }
+                return null;
+              },
+            ),
+            const SizedBox(height: 16),
 
-                // From account
-                DropdownButtonFormField<String>(
-                  value: _selectedAccountId,
-                  decoration: InputDecoration(
-                    labelText: 'Từ ví',
-                    prefixIcon:
-                        Icon(Icons.account_balance_wallet, color: color),
-                    border: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(12),
-                    ),
-                  ),
-                  items: accountProvider.accounts.map((account) {
-                    return DropdownMenuItem(
-                      value: account.id,
-                      child: Row(
-                        children: [
-                          Text(account.typeIcon),
-                          const SizedBox(width: 8),
-                          Text(account.name),
-                        ],
-                      ),
-                    );
-                  }).toList(),
-                  onChanged: (value) =>
-                      setState(() => _selectedAccountId = value),
-                  validator: (value) {
-                    if (value == null) return 'Vui lòng chọn ví';
-                    return null;
-                  },
+            // From account
+            DropdownButtonFormField<String>(
+              value: accounts.any((account) => account.id == _selectedAccountId)
+                  ? _selectedAccountId
+                  : null,
+              decoration: InputDecoration(
+                labelText: 'Từ ví',
+                prefixIcon: Icon(Icons.account_balance_wallet, color: color),
+                border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(12),
                 ),
-                const SizedBox(height: 16),
-
-                // To account (for transfers)
-                if (showToAccount) ...[
-                  DropdownButtonFormField<String>(
-                    value: _selectedToAccountId,
-                    decoration: InputDecoration(
-                      labelText: 'Đến ví',
-                      prefixIcon: Icon(Icons.account_balance, color: color),
-                      border: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(12),
-                      ),
-                    ),
-                    items: accountProvider.accounts
-                        .where((account) => account.id != _selectedAccountId)
-                        .map((account) {
-                      return DropdownMenuItem(
-                        value: account.id,
-                        child: Row(
-                          children: [
-                            Text(account.typeIcon),
-                            const SizedBox(width: 8),
-                            Text(account.name),
-                          ],
-                        ),
-                      );
-                    }).toList(),
-                    onChanged: (value) =>
-                        setState(() => _selectedToAccountId = value),
-                    validator: (value) {
-                      if (value == null) return 'Vui lòng chọn ví đích';
-                      return null;
-                    },
+              ),
+              items: accounts.map<DropdownMenuItem<String>>((account) {
+                return DropdownMenuItem(
+                  value: account.id,
+                  child: Row(
+                    children: [
+                      Text(account.typeIcon),
+                      const SizedBox(width: 8),
+                      Text(account.name),
+                    ],
                   ),
-                  const SizedBox(height: 16),
-                ],
+                );
+              }).toList(),
+              onChanged: (value) => setState(() => _selectedAccountId = value),
+              validator: (value) {
+                if (value == null) return 'Vui lòng chọn ví';
+                return null;
+              },
+            ),
+            const SizedBox(height: 16),
 
-                // Category (for expense/income/refund)
-                if (!showToAccount) ...[
-                  DropdownButtonFormField<String>(
-                    value: _selectedCategoryId,
-                    decoration: InputDecoration(
-                      labelText: 'Danh mục',
-                      prefixIcon: Icon(Icons.category, color: color),
-                      border: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(12),
-                      ),
-                    ),
-                    items: _getCurrentCategories().map((categoryId) {
-                      final categoryName =
-                          TransactionConverter.mapCategory(categoryId);
-                      return DropdownMenuItem(
-                        value: categoryId,
-                        child: Text(categoryName),
-                      );
-                    }).toList(),
-                    onChanged: (value) =>
-                        setState(() => _selectedCategoryId = value),
-                    validator: (value) {
-                      if (value == null) return 'Vui lòng chọn danh mục';
-                      return null;
-                    },
-                  ),
-                  const SizedBox(height: 16),
-                ],
-
-                // Description
-                TextFormField(
-                  controller: _descriptionController,
-                  decoration: InputDecoration(
-                    labelText: 'Mô tả',
-                    prefixIcon: Icon(Icons.description, color: color),
-                    border: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(12),
-                    ),
-                  ),
-                  maxLines: 2,
-                  validator: (value) {
-                    if (value == null || value.isEmpty) {
-                      return 'Vui lòng nhập mô tả';
-                    }
-                    return null;
-                  },
-                ),
-                const SizedBox(height: 16),
-
-                // Date picker
-                InkWell(
-                  onTap: () async {
-                    final date = await showDatePicker(
-                      context: context,
-                      initialDate: _selectedDate,
-                      firstDate: DateTime(2020),
-                      lastDate: DateTime.now().add(const Duration(days: 365)),
-                    );
-                    if (date != null) {
-                      setState(() => _selectedDate = date);
-                    }
-                  },
-                  child: InputDecorator(
-                    decoration: InputDecoration(
-                      labelText: 'Ngày',
-                      prefixIcon: Icon(Icons.calendar_today, color: color),
-                      border: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(12),
-                      ),
-                    ),
-                    child: Text(
-                      '${_selectedDate.day}/${_selectedDate.month}/${_selectedDate.year}',
-                    ),
+            // To account (for transfers)
+            if (showToAccount) ...[
+              DropdownButtonFormField<String>(
+                value: accounts
+                        .any((account) => account.id == _selectedToAccountId)
+                    ? _selectedToAccountId
+                    : null,
+                decoration: InputDecoration(
+                  labelText: 'Đến ví',
+                  prefixIcon: Icon(Icons.account_balance, color: color),
+                  border: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(12),
                   ),
                 ),
-                const SizedBox(height: 16),
-
-                // Tags
-                TextFormField(
-                  controller: _tagsController,
-                  decoration: InputDecoration(
-                    labelText: 'Tags (phân cách bằng dấu phẩy)',
-                    prefixIcon: Icon(Icons.tag, color: color),
-                    border: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(12),
-                    ),
-                  ),
-                  onChanged: (value) {
-                    _tags = value
-                        .split(',')
-                        .map((tag) => tag.trim())
-                        .where((tag) => tag.isNotEmpty)
-                        .toList();
-                  },
-                ),
-                const SizedBox(height: 24),
-
-                // Submit button
-                SizedBox(
-                  width: double.infinity,
-                  child: ElevatedButton(
-                    onPressed: () => _submitTransaction(),
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: color,
-                      foregroundColor: Colors.white,
-                      padding: const EdgeInsets.symmetric(vertical: 16),
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(12),
-                      ),
-                    ),
+                items: accounts
+                    .where((account) => account.id != _selectedAccountId)
+                    .map<DropdownMenuItem<String>>((account) {
+                  return DropdownMenuItem(
+                    value: account.id,
                     child: Row(
-                      mainAxisAlignment: MainAxisAlignment.center,
                       children: [
-                        Icon(icon),
+                        Text(account.typeIcon),
                         const SizedBox(width: 8),
-                        Text('Thêm ${title.toLowerCase()}'),
+                        Text(account.name),
                       ],
                     ),
+                  );
+                }).toList(),
+                onChanged: (value) =>
+                    setState(() => _selectedToAccountId = value),
+                validator: (value) {
+                  if (value == null) return 'Vui lòng chọn ví đích';
+                  return null;
+                },
+              ),
+              const SizedBox(height: 16),
+            ],
+
+            // Category (for expense/income/refund)
+            if (!showToAccount) ...[
+              DropdownButtonFormField<String>(
+                value: _getCurrentCategories().contains(_selectedCategoryId)
+                    ? _selectedCategoryId
+                    : null,
+                decoration: InputDecoration(
+                  labelText: 'Danh mục',
+                  prefixIcon: Icon(Icons.category, color: color),
+                  border: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(12),
                   ),
                 ),
-              ],
+                items: _getCurrentCategories().map((categoryId) {
+                  final categoryName =
+                      TransactionConverter.mapCategory(categoryId);
+                  return DropdownMenuItem(
+                    value: categoryId,
+                    child: Text(categoryName),
+                  );
+                }).toList(),
+                onChanged: (value) =>
+                    setState(() => _selectedCategoryId = value),
+                validator: (value) {
+                  if (value == null) return 'Vui lòng chọn danh mục';
+                  return null;
+                },
+              ),
+              const SizedBox(height: 16),
+            ],
+
+            // Description
+            TextFormField(
+              controller: _descriptionController,
+              decoration: InputDecoration(
+                labelText: 'Mô tả',
+                prefixIcon: Icon(Icons.description, color: color),
+                border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(12),
+                ),
+              ),
+              maxLines: 2,
+              validator: (value) {
+                if (value == null || value.isEmpty) {
+                  return 'Vui lòng nhập mô tả';
+                }
+                return null;
+              },
             ),
-          ),
-        );
-      },
+            const SizedBox(height: 16),
+
+            // Date picker
+            InkWell(
+              onTap: () async {
+                final date = await showDatePicker(
+                  context: context,
+                  initialDate: _selectedDate,
+                  firstDate: DateTime(2020),
+                  lastDate: DateTime.now().add(const Duration(days: 365)),
+                );
+                if (date != null) {
+                  setState(() => _selectedDate = date);
+                }
+              },
+              child: InputDecorator(
+                decoration: InputDecoration(
+                  labelText: 'Ngày',
+                  prefixIcon: Icon(Icons.calendar_today, color: color),
+                  border: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                ),
+                child: Text(
+                  '${_selectedDate.day}/${_selectedDate.month}/${_selectedDate.year}',
+                ),
+              ),
+            ),
+            const SizedBox(height: 16),
+
+            // Tags
+            TextFormField(
+              controller: _tagsController,
+              decoration: InputDecoration(
+                labelText: 'Tags (phân cách bằng dấu phẩy)',
+                prefixIcon: Icon(Icons.tag, color: color),
+                border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(12),
+                ),
+              ),
+              onChanged: (value) {
+                _tags = value
+                    .split(',')
+                    .map((tag) => tag.trim())
+                    .where((tag) => tag.isNotEmpty)
+                    .toList();
+              },
+            ),
+            const SizedBox(height: 24),
+
+            // Submit button
+            SizedBox(
+              width: double.infinity,
+              child: ElevatedButton(
+                onPressed: () => _submitTransaction(),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: color,
+                  foregroundColor: Colors.white,
+                  padding: const EdgeInsets.symmetric(vertical: 16),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                ),
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    Icon(icon),
+                    const SizedBox(width: 8),
+                    Text('Thêm ${title.toLowerCase()}'),
+                  ],
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
     );
   }
 
   Future<void> _submitTransaction() async {
-    if (!_formKey.currentState!.validate()) return;
+    // Get the correct form key based on current tab
+    GlobalKey<FormState> currentFormKey;
+    switch (_tabController.index) {
+      case 0:
+        currentFormKey = _expenseFormKey;
+        break;
+      case 1:
+        currentFormKey = _incomeFormKey;
+        break;
+      case 2:
+        currentFormKey = _transferFormKey;
+        break;
+      case 3:
+        currentFormKey = _refundFormKey;
+        break;
+      default:
+        currentFormKey = _expenseFormKey;
+    }
+
+    if (!currentFormKey.currentState!.validate()) return;
 
     final amount = double.parse(_amountController.text);
     final description = _descriptionController.text;

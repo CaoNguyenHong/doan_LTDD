@@ -33,7 +33,7 @@ class _BudgetsScreenState extends State<BudgetsScreen> {
             return const Center(child: CircularProgressIndicator());
           }
 
-          if (budgetProvider.error.isNotEmpty) {
+          if (budgetProvider.error?.isNotEmpty == true) {
             return Center(
               child: Column(
                 mainAxisAlignment: MainAxisAlignment.center,
@@ -637,7 +637,7 @@ class _BudgetsScreenState extends State<BudgetsScreen> {
                     updatedAt: DateTime.now(),
                   );
 
-                  await budgetProvider.updateBudget(budget.id, updatedBudget);
+                  await budgetProvider.updateBudget(updatedBudget);
 
                   if (context.mounted) {
                     Navigator.pop(context);

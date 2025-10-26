@@ -34,17 +34,21 @@ flutter doctor --android-licenses
 ## Run
 
 ```bash
-# Web
-flutter run -d chrome
+# Clean and get dependencies
+flutter clean
+flutter pub get
 
-# Android (with emulator)
+# Deploy Firestore indexes (if using file-based indexes)
+firebase deploy --only firestore:indexes
+
+# Run app
 flutter run -d emulator-5554
 
-# Android (with physical device)
-flutter run -d <device-id>
+# Hot restart after adding new providers (not hot-reload)
+# Press 'R' in terminal or restart the app
 ```
 
-## Firebase (Optional)
+## Firebase Setup
 
 ```bash
 # Install FlutterFire CLI
@@ -53,7 +57,32 @@ dart pub global activate flutterfire_cli
 # Configure Firebase
 flutterfire configure
 # This generates: lib/firebase_options.dart
+
+# Deploy Firestore indexes (required for queries)
+firebase deploy --only firestore:indexes
 ```
+
+## App Check (Dev)
+
+**Debug Token**: `51b44e19-b636-42a1-8dd0-d86023e040ca`
+
+Thêm token này vào Firebase Console:
+1. Vào Firebase Console → App Check
+2. Chọn Android app → Manage debug tokens
+3. Add token: `51b44e19-b636-42a1-8dd0-d86023e040ca`
+
+**Lưu ý**: Khi release production, bật enforcement và dùng Play Integrity.
+
+## Deploy Firestore Indexes
+
+Sau khi thêm composite indexes vào `firestore.indexes.json`:
+
+```bash
+# Deploy indexes to Firebase
+firebase deploy --only firestore:indexes
+```
+
+**Lưu ý**: Indexes có thể mất vài phút để build. Kiểm tra Firebase Console → Firestore → Indexes để xem trạng thái.
 
 ## Environment Variables
 

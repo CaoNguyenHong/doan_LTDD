@@ -15,6 +15,7 @@ class _SignUpScreenState extends State<SignUpScreen>
   final _emailController = TextEditingController();
   final _passwordController = TextEditingController();
   final _confirmPasswordController = TextEditingController();
+  final _displayNameController = TextEditingController();
   bool _isLoading = false;
   String? _errorMessage;
   bool _obscurePassword = true;
@@ -55,6 +56,7 @@ class _SignUpScreenState extends State<SignUpScreen>
     _emailController.dispose();
     _passwordController.dispose();
     _confirmPasswordController.dispose();
+    _displayNameController.dispose();
     _animationController.dispose();
     super.dispose();
   }
@@ -69,9 +71,12 @@ class _SignUpScreenState extends State<SignUpScreen>
 
     try {
       final authRepo = AuthRepo();
-      await authRepo.signUpEmail(
-        _emailController.text.trim(),
-        _passwordController.text,
+      await authRepo.signUpAndCreateProfile(
+        email: _emailController.text.trim(),
+        password: _passwordController.text,
+        displayName: _displayNameController.text.trim().isNotEmpty
+            ? _displayNameController.text.trim()
+            : null,
       );
 
       // Show success message and navigate to sign in screen
@@ -195,6 +200,44 @@ class _SignUpScreenState extends State<SignUpScreen>
                               key: _formKey,
                               child: Column(
                                 children: [
+                                  // Display Name Field
+                                  TextFormField(
+                                    controller: _displayNameController,
+                                    style: const TextStyle(
+                                      color: Colors.black,
+                                      fontSize: 16,
+                                    ),
+                                    decoration: InputDecoration(
+                                      labelText: 'Tên hiển thị (tùy chọn)',
+                                      prefixIcon: Icon(
+                                        Icons.person_outline,
+                                        color: Colors.grey.shade600,
+                                      ),
+                                      border: OutlineInputBorder(
+                                        borderRadius: BorderRadius.circular(12),
+                                        borderSide: BorderSide(
+                                          color: Colors.grey.shade300,
+                                        ),
+                                      ),
+                                      enabledBorder: OutlineInputBorder(
+                                        borderRadius: BorderRadius.circular(12),
+                                        borderSide: BorderSide(
+                                          color: Colors.grey.shade300,
+                                        ),
+                                      ),
+                                      focusedBorder: OutlineInputBorder(
+                                        borderRadius: BorderRadius.circular(12),
+                                        borderSide: const BorderSide(
+                                          color: Color(0xFF667eea),
+                                          width: 2,
+                                        ),
+                                      ),
+                                      filled: true,
+                                      fillColor: Colors.grey.shade50,
+                                    ),
+                                  ),
+                                  const SizedBox(height: 16),
+
                                   // Email Field
                                   TextFormField(
                                     controller: _emailController,

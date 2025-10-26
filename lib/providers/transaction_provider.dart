@@ -1,193 +1,161 @@
 import 'package:flutter/foundation.dart';
 import '../models/transaction.dart';
-import '../data/firestore_transaction_repo.dart';
+import '../data/firestore_data_source.dart';
 
-class TransactionProvider with ChangeNotifier {
-  final String uid;
-  final FirestoreTransactionRepo _transactionRepo;
+class TransactionProvider extends ChangeNotifier {
+  final FirestoreDataSource _ds;
+  final String _uid;
 
-  List<Transaction> _transactions = [];
-  bool _isLoading = false;
-  String _error = '';
-
-  TransactionProvider({required this.uid})
-      : _transactionRepo = FirestoreTransactionRepo(uid: uid) {
-    _watchTransactions();
+  TransactionProvider(this._ds, this._uid) {
+    _watch();
   }
 
-  List<Transaction> get transactions => _transactions;
-  bool get isLoading => _isLoading;
-  String get error => _error;
+  List<Transaction> _items = [];
+  bool _loading = true;
+  String? _error;
 
-  void _watchTransactions() {
-    _setLoading(true);
-    _transactionRepo.watchTransactions().listen(
-      (transactions) {
-        _transactions = transactions.cast<Transaction>();
-        _error = '';
-        _setLoading(false);
-        notifyListeners();
-      },
-      onError: (error) {
-        _error = 'Không thể tải danh sách giao dịch: $error';
-        _setLoading(false);
-        notifyListeners();
-      },
-    );
+  List<Transaction> get items => _items;
+  bool get isLoading => _loading;
+  String? get error => _error;
+
+  void _watch() {
+    _loading = true;
+    notifyListeners();
+    _ds.watchTx(_uid).listen((rows) {
+      _items = rows
+          .map((data) {
+            try {
+              return Transaction.fromMap(data['id'] as String, data);
+            } catch (e) {
+              debugPrint('⚠️ Transaction map error for ${data['id']}: $e');
+              return null;
+            }
+          })
+          .where((e) => e != null)
+          .cast<Transaction>()
+          .toList();
+      _loading = false;
+      _error = null;
+      notifyListeners();
+    }, onError: (e) {
+      _error = e.toString();
+      _loading = false;
+      notifyListeners();
+    });
+  }
+
+  Future<void> add({
+    required String categoryId,
+    required double amount,
+    required String description,
+    required DateTime dateTime,
+    required String accountId,
+    String type = 'expense', // TODO(CURSOR): Set according to form
+    String? tags,
+  }) async {
+    await _ds.addTx(_uid, {
+      'type': type,
+      'categoryId': categoryId,
+      'amount': amount,
+      'description': description,
+      'accountId': accountId,
+      'dateTime': dateTime.toUtc(),
+      'tags': tags
+              ?.split(',')
+              .map((e) => e.trim())
+              .where((e) => e.isNotEmpty)
+              .toList() ??
+          [],
+    });
   }
 
   Future<void> addTransaction(Transaction transaction) async {
-    _setLoading(true);
-    try {
-      await _transactionRepo.addTransaction(transaction);
-      _error = '';
-    } catch (e) {
-      _error = 'Không thể thêm giao dịch: $e';
-    }
-    _setLoading(false);
-    notifyListeners();
+    await _ds.addTx(_uid, transaction.toMap());
   }
 
-  Future<void> updateTransaction(
-      String transactionId, Transaction transaction) async {
-    _setLoading(true);
-    try {
-      await _transactionRepo.updateTransaction(transactionId, transaction);
-      _error = '';
-    } catch (e) {
-      _error = 'Không thể cập nhật giao dịch: $e';
-    }
-    _setLoading(false);
-    notifyListeners();
+  Future<void> updateTransaction(Transaction transaction) async {
+    await _ds.updateTx(_uid, transaction.id, transaction.toMap());
   }
 
-  Future<void> deleteTransaction(String transactionId) async {
-    _setLoading(true);
-    try {
-      await _transactionRepo.deleteTransaction(transactionId);
-      _error = '';
-    } catch (e) {
-      _error = 'Không thể xóa giao dịch: $e';
-    }
-    _setLoading(false);
-    notifyListeners();
-  }
+  Future<void> remove(String id) => _ds.softDeleteTx(_uid, id);
 
-  Future<List<Transaction>> searchTransactions(String query) async {
-    try {
-      return await _transactionRepo
-          .searchTransactions(query)
-          .then((list) => list.cast<Transaction>());
-    } catch (e) {
-      _error = 'Không thể tìm kiếm giao dịch: $e';
-      return [];
-    }
-  }
+  Future<void> deleteTransaction(String id) => _ds.softDeleteTx(_uid, id);
 
-  Future<List<Transaction>> getTransactionsByFilter({
-    String? accountId,
-    String? categoryId,
-    String? type,
-    DateTime? startDate,
-    DateTime? endDate,
-    double? minAmount,
-    double? maxAmount,
-    List<String>? tags,
-    String? searchQuery,
-  }) async {
-    try {
-      return await _transactionRepo
-          .getTransactionsByFilter(
-            accountId: accountId,
-            categoryId: categoryId,
-            type: type,
-            startDate: startDate,
-            endDate: endDate,
-            minAmount: minAmount,
-            maxAmount: maxAmount,
-            tags: tags,
-            searchQuery: searchQuery,
-          )
-          .then((list) => list.cast<Transaction>());
-    } catch (e) {
-      _error = 'Không thể lọc giao dịch: $e';
-      return [];
-    }
-  }
+  // Legacy methods for backward compatibility
+  List<Transaction> get transactions => _items;
 
+  // Additional methods for filtering and calculations
   List<Transaction> getTransactionsByType(String type) {
-    return _transactions.where((tx) => tx.type == type).toList();
+    return _items.where((t) => t.type == type).toList();
   }
 
   List<Transaction> getTransactionsByAccount(String accountId) {
-    return _transactions.where((tx) => tx.accountId == accountId).toList();
+    return _items.where((t) => t.accountId == accountId).toList();
   }
 
   List<Transaction> getTransactionsByCategory(String categoryId) {
-    return _transactions.where((tx) => tx.categoryId == categoryId).toList();
+    return _items.where((t) => t.categoryId == categoryId).toList();
   }
 
   List<Transaction> getTransactionsByDateRange(DateTime start, DateTime end) {
-    return _transactions
-        .where((tx) => tx.dateTime.isAfter(start) && tx.dateTime.isBefore(end))
+    return _items
+        .where((t) => t.dateTime.isAfter(start) && t.dateTime.isBefore(end))
         .toList();
   }
 
   double getTotalByType(String type) {
-    return _transactions
-        .where((tx) => tx.type == type)
-        .fold(0.0, (sum, tx) => sum + tx.amount);
+    return _items
+        .where((t) => t.type == type)
+        .fold(0.0, (sum, t) => sum + t.amount);
   }
 
   double getTotalByAccount(String accountId) {
-    return _transactions
-        .where((tx) => tx.accountId == accountId)
-        .fold(0.0, (sum, tx) => sum + tx.amount);
+    return _items
+        .where((t) => t.accountId == accountId)
+        .fold(0.0, (sum, t) => sum + t.amount);
   }
 
   double getTotalByCategory(String categoryId) {
-    return _transactions
-        .where((tx) => tx.categoryId == categoryId)
-        .fold(0.0, (sum, tx) => sum + tx.amount);
+    return _items
+        .where((t) => t.categoryId == categoryId)
+        .fold(0.0, (sum, t) => sum + t.amount);
   }
 
-  double getTotalIncome() {
-    return getTotalByType('income');
-  }
-
-  double getTotalExpense() {
-    return getTotalByType('expense');
-  }
-
-  double getTotalRefund() {
-    return getTotalByType('refund');
-  }
-
-  double getNetAmount() {
-    return getTotalIncome() - getTotalExpense() + getTotalRefund();
-  }
-
-  Map<String, double> getCategoryBreakdown() {
-    final Map<String, double> breakdown = {};
-    for (var tx in _transactions) {
-      if (tx.type == 'expense' && tx.categoryId != null) {
-        breakdown[tx.categoryId!] =
-            (breakdown[tx.categoryId!] ?? 0) + tx.amount;
-      }
+  Map<String, double> getTotalsByType() {
+    final Map<String, double> totals = {};
+    for (final transaction in _items) {
+      totals[transaction.type] =
+          (totals[transaction.type] ?? 0) + transaction.amount;
     }
-    return breakdown;
+    return totals;
   }
 
-  Map<String, double> getAccountBreakdown() {
-    final Map<String, double> breakdown = {};
-    for (var tx in _transactions) {
-      breakdown[tx.accountId] = (breakdown[tx.accountId] ?? 0) + tx.amount;
+  Map<String, double> getTotalsByAccount() {
+    final Map<String, double> totals = {};
+    for (final transaction in _items) {
+      totals[transaction.accountId] =
+          (totals[transaction.accountId] ?? 0) + transaction.amount;
     }
-    return breakdown;
+    return totals;
   }
 
-  void _setLoading(bool value) {
-    _isLoading = value;
-    notifyListeners();
+  Map<String, double> getTotalsByCategory() {
+    final Map<String, double> totals = {};
+    for (final transaction in _items) {
+      totals[transaction.categoryId ?? 'unknown'] =
+          (totals[transaction.categoryId ?? 'unknown'] ?? 0) +
+              transaction.amount;
+    }
+    return totals;
+  }
+
+  List<Transaction> searchTransactions(String query) {
+    if (query.isEmpty) return _items;
+    return _items
+        .where((t) =>
+            t.description.toLowerCase().contains(query.toLowerCase()) ||
+            t.tags
+                .any((tag) => tag.toLowerCase().contains(query.toLowerCase())))
+        .toList();
   }
 }

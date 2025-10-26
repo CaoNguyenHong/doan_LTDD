@@ -65,10 +65,13 @@ class _HistoryScreenState extends State<HistoryScreen> {
           ),
         ],
       ),
-      body: Consumer2<TransactionProvider, SettingsProvider>(
-        builder: (context, transactionProvider, settingsProvider, _) {
+      body: Builder(
+        builder: (context) {
+          final transactionProvider = context.watch<TransactionProvider>();
+          final settingsProvider = context.watch<SettingsProvider>();
+
           final transactions =
-              _getFilteredTransactions(transactionProvider.transactions);
+              _getFilteredTransactions(transactionProvider.items);
           final groupedTransactions = _groupTransactionsByDate(transactions);
 
           return Column(
@@ -299,6 +302,7 @@ class _HistoryScreenState extends State<HistoryScreen> {
     }
 
     return Container(
+      key: ValueKey('date-group-$date'),
       margin: const EdgeInsets.only(bottom: 20),
       decoration: BoxDecoration(
         color: Colors.white,
@@ -398,8 +402,10 @@ class _HistoryScreenState extends State<HistoryScreen> {
           ),
 
           // Transactions
-          ...transactions.map(
-              (transaction) => _buildTransactionItem(transaction, settings)),
+          ...transactions
+              .map(
+                  (transaction) => _buildTransactionItem(transaction, settings))
+              .toList(),
         ],
       ),
     );
@@ -413,6 +419,7 @@ class _HistoryScreenState extends State<HistoryScreen> {
     final categoryName = _getCategoryName(transaction.categoryId);
 
     return Container(
+      key: ValueKey('transaction-${transaction.id}'),
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
         border: Border(

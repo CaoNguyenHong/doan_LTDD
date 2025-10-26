@@ -1,151 +1,142 @@
 import 'package:flutter/foundation.dart';
 import '../models/account.dart';
-import '../data/firestore_account_repo.dart';
+import '../data/firestore_data_source.dart';
 import '../utils/sample_data.dart';
 
-class AccountProvider with ChangeNotifier {
-  final String uid;
-  final FirestoreAccountRepo _accountRepo;
+class AccountProvider extends ChangeNotifier {
+  final FirestoreDataSource _ds;
+  final String _uid;
 
-  List<Account> _accounts = [];
-  bool _isLoading = false;
-  String _error = '';
-
-  AccountProvider({required this.uid})
-      : _accountRepo = FirestoreAccountRepo(uid: uid) {
-    _watchAccounts();
+  AccountProvider(this._ds, this._uid) {
+    _watch();
   }
 
-  List<Account> get accounts => _accounts;
-  bool get isLoading => _isLoading;
-  String get error => _error;
+  List<Account> _items = [];
+  bool _loading = true;
+  String? _error;
 
-  void _watchAccounts() {
-    _setLoading(true);
-    _accountRepo.watchAccounts().listen(
-      (accounts) {
-        _accounts = accounts;
+  List<Account> get items => _items;
+  bool get isLoading => _loading;
+  String? get error => _error;
 
-        // Create sample data if no accounts exist
-        if (_accounts.isEmpty) {
-          _createSampleData();
-        }
+  void _watch() {
+    _loading = true;
+    notifyListeners();
+    _ds.watchAccounts(_uid).listen((rows) {
+      _items = rows.map((data) => Account.fromMap(data['id'], data)).toList();
 
-        _error = '';
-        _setLoading(false);
-        notifyListeners();
-      },
-      onError: (error) {
-        _error = 'Không thể tải danh sách ví: $error';
-        _setLoading(false);
-        notifyListeners();
-      },
-    );
+      // Create sample data if no accounts exist
+      if (_items.isEmpty) {
+        _createSampleData();
+      }
+
+      _loading = false;
+      _error = null;
+      notifyListeners();
+    }, onError: (e) {
+      _error = e.toString();
+      _loading = false;
+      notifyListeners();
+    });
   }
 
   Future<void> _createSampleData() async {
     try {
       final sampleAccounts = SampleData.getDefaultAccounts();
       for (final account in sampleAccounts) {
-        await _accountRepo.addAccount(account);
+        await _ds.addAccount(_uid, account.toMap());
       }
     } catch (e) {
-      print('Error creating sample data: $e');
+      print('Error creating sample accounts: $e');
     }
+  }
+
+  Future<void> add({
+    required String name,
+    required String type,
+    required String currency,
+    double balance = 0.0,
+    bool isDefault = false,
+  }) async {
+    await _ds.addAccount(_uid, {
+      'name': name,
+      'type': type,
+      'currency': currency,
+      'balance': balance,
+      'isDefault': isDefault,
+    });
   }
 
   Future<void> addAccount(Account account) async {
-    _setLoading(true);
-    try {
-      await _accountRepo.addAccount(account);
-      _error = '';
-    } catch (e) {
-      _error = 'Không thể thêm ví: $e';
-    }
-    _setLoading(false);
-    notifyListeners();
+    await _ds.addAccount(_uid, account.toMap());
   }
 
-  Future<void> updateAccount(String accountId, Account account) async {
-    _setLoading(true);
-    try {
-      await _accountRepo.updateAccount(accountId, account);
-      _error = '';
-    } catch (e) {
-      _error = 'Không thể cập nhật ví: $e';
-    }
-    _setLoading(false);
-    notifyListeners();
+  Future<void> updateAccount(Account account) async {
+    await _ds.updateAccount(_uid, account.id, account.toMap());
   }
 
-  Future<void> deleteAccount(String accountId) async {
-    _setLoading(true);
-    try {
-      await _accountRepo.deleteAccount(accountId);
-      _error = '';
-    } catch (e) {
-      _error = 'Không thể xóa ví: $e';
-    }
-    _setLoading(false);
-    notifyListeners();
+  Future<void> deleteAccount(String id) => _ds.softDeleteAccount(_uid, id);
+
+  Future<void> updateBalance(String id, double newBalance) async {
+    await _ds.updateAccount(_uid, id, {'balance': newBalance});
   }
 
-  Future<void> setDefaultAccount(String accountId) async {
-    _setLoading(true);
-    try {
-      await _accountRepo.setDefaultAccount(accountId);
-      _error = '';
-    } catch (e) {
-      _error = 'Không thể đặt ví mặc định: $e';
+  Future<void> setDefaultAccount(String id) async {
+    // First, unset all other accounts as default
+    for (final account in _items) {
+      if (account.isDefault && account.id != id) {
+        await _ds.updateAccount(_uid, account.id, {'isDefault': false});
+      }
     }
-    _setLoading(false);
-    notifyListeners();
+    // Then set the selected account as default
+    await _ds.updateAccount(_uid, id, {'isDefault': true});
   }
 
-  Future<void> updateAccountBalance(String accountId, double newBalance) async {
-    _setLoading(true);
-    try {
-      await _accountRepo.updateAccountBalance(accountId, newBalance);
-      _error = '';
-    } catch (e) {
-      _error = 'Không thể cập nhật số dư: $e';
-    }
-    _setLoading(false);
-    notifyListeners();
-  }
+  // Legacy methods for backward compatibility
+  List<Account> get accounts => _items;
 
+  // Additional methods
   Account? getDefaultAccount() {
     try {
-      return _accounts.firstWhere((account) => account.isDefault);
+      return _items.firstWhere((account) => account.isDefault);
     } catch (e) {
-      return null;
-    }
-  }
-
-  Account? getAccountById(String accountId) {
-    try {
-      return _accounts.firstWhere((account) => account.id == accountId);
-    } catch (e) {
-      return null;
+      return _items.isNotEmpty ? _items.first : null;
     }
   }
 
   List<Account> getAccountsByType(String type) {
-    return _accounts.where((account) => account.type == type).toList();
+    return _items.where((account) => account.type == type).toList();
   }
 
   double getTotalBalance() {
-    return _accounts.fold(0.0, (sum, account) => sum + account.balance);
+    return _items.fold(0.0, (sum, account) => sum + account.balance);
   }
 
   double getTotalBalanceByType(String type) {
-    return _accounts
+    return _items
         .where((account) => account.type == type)
         .fold(0.0, (sum, account) => sum + account.balance);
   }
 
-  void _setLoading(bool value) {
-    _isLoading = value;
-    notifyListeners();
+  Map<String, double> getTotalsByType() {
+    final Map<String, double> totals = {};
+    for (final account in _items) {
+      totals[account.type] = (totals[account.type] ?? 0) + account.balance;
+    }
+    return totals;
+  }
+
+  Map<String, double> getTotalsByCurrency() {
+    final Map<String, double> totals = {};
+    for (final account in _items) {
+      totals[account.currency] =
+          (totals[account.currency] ?? 0) + account.balance;
+    }
+    return totals;
+  }
+
+  // Additional methods for backward compatibility
+  Future<void> updateAccountBalance(String id, double newBalance) async {
+    await updateBalance(id, newBalance);
   }
 }

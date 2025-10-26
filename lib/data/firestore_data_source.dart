@@ -1,232 +1,221 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
-import '../hive/expense.dart';
 
 class FirestoreDataSource {
-  final FirebaseFirestore _firestore = FirebaseFirestore.instance;
+  final FirebaseFirestore _db = FirebaseFirestore.instance;
 
-  /// Add expense to Firestore
-  Future<void> addExpense(String uid, Expense expense) async {
-    print('🔥 FirestoreDataSource: Adding expense to Firestore');
-    print('🔥 FirestoreDataSource: UID = $uid');
-    print(
-        '🔥 FirestoreDataSource: Expense = ${expense.category}, ${expense.amount}, ${expense.description}');
+  // --- User document reference ---
+  DocumentReference<Map<String, dynamic>> userDocRef(String uid) =>
+      _db.collection('users').doc(uid);
 
-    try {
-      final docRef = await _firestore
-          .collection('users')
-          .doc(uid)
-          .collection('expenses')
-          .add({
-        'category': expense.category,
-        'amount': expense.amount,
-        'description': expense.description,
-        'dateTime': Timestamp.fromDate(expense.dateTime),
+  // --- Transactions ---
+  CollectionReference<Map<String, dynamic>> txRef(String uid) =>
+      userDocRef(uid).collection('transactions');
+
+  Stream<List<Map<String, dynamic>>> watchTx(String uid,
+      {DateTime? from, DateTime? to}) {
+    Query<Map<String, dynamic>> q = txRef(uid)
+        .where('deleted', isEqualTo: false)
+        .orderBy('dateTime', descending: true);
+    if (from != null)
+      q = q.where('dateTime',
+          isGreaterThanOrEqualTo: Timestamp.fromDate(from.toUtc()));
+    if (to != null)
+      q = q.where('dateTime',
+          isLessThanOrEqualTo: Timestamp.fromDate(to.toUtc()));
+    return q
+        .snapshots()
+        .map((s) => s.docs.map((d) => {...d.data(), 'id': d.id}).toList());
+  }
+
+  Future<void> addTx(String uid, Map<String, dynamic> data) {
+    final now = DateTime.now();
+    return txRef(uid).doc().set({
+      'type': data['type'] ?? 'expense',
+      'amount': data['amount'] ?? 0,
+      'accountId': data['accountId'] ?? '',
+      'toAccountId': data['toAccountId'],
+      'categoryId': data['categoryId'],
+      'currency': data['currency'] ?? 'USD',
+      'description': data['description'] ?? '',
+      'merchantId': data['merchantId'],
+      'tags': data['tags'] ?? [],
+      'attachmentUrl': data['attachmentUrl'],
+      'isAdjustment': data['isAdjustment'] ?? false,
+      'deleted': false,
+
+      // dateTime hiển thị ngay lập tức (không chờ serverTimestamp)
+      'dateTime': (data['dateTime'] is DateTime)
+          ? Timestamp.fromDate((data['dateTime'] as DateTime).toUtc())
+          : Timestamp.fromDate(now.toUtc()),
+
+      // audit fields vẫn dùng server clock
+      'createdAt': FieldValue.serverTimestamp(),
+      'updatedAt': FieldValue.serverTimestamp(),
+    });
+  }
+
+  Future<void> updateTx(String uid, String id, Map<String, dynamic> data) =>
+      txRef(uid).doc(id).update({
+        ...data,
+        'updatedAt': FieldValue.serverTimestamp(),
+      });
+
+  Future<void> softDeleteTx(String uid, String id) => txRef(uid)
+      .doc(id)
+      .update({'deleted': true, 'updatedAt': FieldValue.serverTimestamp()});
+
+  // --- Accounts ---
+  CollectionReference<Map<String, dynamic>> accRef(String uid) =>
+      userDocRef(uid).collection('accounts');
+
+  Stream<List<Map<String, dynamic>>> watchAccounts(String uid) => accRef(uid)
+      .where('deleted', isEqualTo: false)
+      .orderBy('createdAt', descending: true)
+      .snapshots()
+      .map((s) => s.docs.map((d) => {...d.data(), 'id': d.id}).toList());
+
+  Future<void> addAccount(String uid, Map<String, dynamic> data) =>
+      accRef(uid).doc().set({
+        ...data,
         'createdAt': FieldValue.serverTimestamp(),
         'updatedAt': FieldValue.serverTimestamp(),
         'deleted': false,
       });
 
-      print(
-          '🔥 FirestoreDataSource: Expense added successfully with ID: ${docRef.id}');
-    } catch (e) {
-      print('🔥 FirestoreDataSource: Error adding expense: $e');
-      rethrow;
-    }
-  }
+  Future<void> updateAccount(
+          String uid, String id, Map<String, dynamic> data) =>
+      accRef(uid).doc(id).update({
+        ...data,
+        'updatedAt': FieldValue.serverTimestamp(),
+      });
 
-  /// Update expense in Firestore
+  Future<void> softDeleteAccount(String uid, String id) => accRef(uid)
+      .doc(id)
+      .update({'deleted': true, 'updatedAt': FieldValue.serverTimestamp()});
+
+  // --- Budgets ---
+  CollectionReference<Map<String, dynamic>> budgetRef(String uid) =>
+      userDocRef(uid).collection('budgets');
+
+  Stream<List<Map<String, dynamic>>> watchBudgets(String uid) => budgetRef(uid)
+      .where('deleted', isEqualTo: false)
+      .orderBy('createdAt', descending: true)
+      .snapshots()
+      .map((s) => s.docs.map((d) => {...d.data(), 'id': d.id}).toList());
+
+  Future<void> addBudget(String uid, Map<String, dynamic> data) =>
+      budgetRef(uid).doc().set({
+        ...data,
+        'createdAt': FieldValue.serverTimestamp(),
+        'updatedAt': FieldValue.serverTimestamp(),
+        'deleted': false,
+      });
+
+  Future<void> updateBudget(String uid, String id, Map<String, dynamic> data) =>
+      budgetRef(uid).doc(id).update({
+        ...data,
+        'updatedAt': FieldValue.serverTimestamp(),
+      });
+
+  Future<void> softDeleteBudget(String uid, String id) => budgetRef(uid)
+      .doc(id)
+      .update({'deleted': true, 'updatedAt': FieldValue.serverTimestamp()});
+
+  // --- Recurring Transactions ---
+  CollectionReference<Map<String, dynamic>> recurringRef(String uid) =>
+      _db.collection('users').doc(uid).collection('recurring');
+
+  Stream<List<Map<String, dynamic>>> watchRecurring(String uid) =>
+      recurringRef(uid)
+          .where('deleted', isEqualTo: false)
+          .orderBy('createdAt', descending: true)
+          .snapshots()
+          .map((s) => s.docs.map((d) => {...d.data(), 'id': d.id}).toList());
+
+  Future<void> addRecurring(String uid, Map<String, dynamic> data) =>
+      recurringRef(uid).doc().set({
+        ...data,
+        'createdAt': FieldValue.serverTimestamp(),
+        'updatedAt': FieldValue.serverTimestamp(),
+        'deleted': false,
+      });
+
+  Future<void> updateRecurring(
+          String uid, String id, Map<String, dynamic> data) =>
+      recurringRef(uid).doc(id).update({
+        ...data,
+        'updatedAt': FieldValue.serverTimestamp(),
+      });
+
+  Future<void> softDeleteRecurring(String uid, String id) => recurringRef(uid)
+      .doc(id)
+      .update({'deleted': true, 'updatedAt': FieldValue.serverTimestamp()});
+
+  // --- User Settings ---
+  DocumentReference<Map<String, dynamic>> settingsRef(String uid) =>
+      _db.collection('users').doc(uid).collection('settings').doc('main');
+
+  Stream<Map<String, dynamic>?> watchSettings(String uid) =>
+      settingsRef(uid).snapshots().map((s) => s.exists ? s.data() : null);
+
+  Future<void> updateSettings(String uid, Map<String, dynamic> data) =>
+      settingsRef(uid).set({
+        ...data,
+        'updatedAt': FieldValue.serverTimestamp(),
+      }, SetOptions(merge: true));
+
+  // --- Legacy Expense Support (for backward compatibility) ---
+  CollectionReference<Map<String, dynamic>> expenseRef(String uid) =>
+      _db.collection('users').doc(uid).collection('expenses');
+
+  Stream<List<Map<String, dynamic>>> watchExpenses(String uid) =>
+      expenseRef(uid)
+          .where('deleted', isEqualTo: false)
+          .orderBy('dateTime', descending: true)
+          .snapshots()
+          .map((s) => s.docs.map((d) => {...d.data(), 'id': d.id}).toList());
+
+  Future<void> addExpense(String uid, Map<String, dynamic> data) =>
+      expenseRef(uid).doc().set({
+        ...data,
+        'createdAt': FieldValue.serverTimestamp(),
+        'updatedAt': FieldValue.serverTimestamp(),
+        'deleted': false,
+      });
+
   Future<void> updateExpense(
-      String uid, String expenseId, Expense expense) async {
-    await _firestore
-        .collection('users')
-        .doc(uid)
-        .collection('expenses')
-        .doc(expenseId)
-        .update({
-      'category': expense.category,
-      'amount': expense.amount,
-      'description': expense.description,
-      'dateTime': Timestamp.fromDate(expense.dateTime),
-      'updatedAt': FieldValue.serverTimestamp(),
-    });
-  }
+          String uid, String id, Map<String, dynamic> data) =>
+      expenseRef(uid).doc(id).update({
+        ...data,
+        'updatedAt': FieldValue.serverTimestamp(),
+      });
 
-  /// Delete expense (soft delete)
-  Future<void> deleteExpense(String uid, String expenseId) async {
-    await _firestore
-        .collection('users')
-        .doc(uid)
-        .collection('expenses')
-        .doc(expenseId)
-        .update({
-      'deleted': true,
-      'updatedAt': FieldValue.serverTimestamp(),
-    });
-  }
+  Future<void> softDeleteExpense(String uid, String id) => expenseRef(uid)
+      .doc(id)
+      .update({'deleted': true, 'updatedAt': FieldValue.serverTimestamp()});
 
-  /// Watch expenses stream
-  Stream<List<Map<String, dynamic>>> watchExpenses(String uid) {
-    return _firestore
-        .collection('users')
-        .doc(uid)
-        .collection('expenses')
-        .orderBy('dateTime', descending: true)
-        .snapshots()
-        .map((snapshot) {
-      return snapshot.docs
-          .where((doc) =>
-              doc.data()['deleted'] != true) // Filter deleted in memory
-          .map((doc) {
-        final data = doc.data();
-        return {
-          'id': doc.id,
-          'category': data['category'],
-          'amount': data['amount'],
-          'description': data['description'],
-          'dateTime': (data['dateTime'] as Timestamp).toDate(),
-          'createdAt': (data['createdAt'] as Timestamp).toDate(),
-          'updatedAt': data['updatedAt'] != null
-              ? (data['updatedAt'] as Timestamp).toDate()
-              : DateTime.now(),
-        };
-      }).toList();
-    });
-  }
+  // --- Learned Categories ---
+  CollectionReference<Map<String, dynamic>> learnedRef(String uid) =>
+      _db.collection('users').doc(uid).collection('learned');
 
-  /// Get expenses (one-time)
-  Future<List<Map<String, dynamic>>> getExpenses(String uid) async {
-    final snapshot = await _firestore
-        .collection('users')
-        .doc(uid)
-        .collection('expenses')
-        .where('deleted', isEqualTo: false)
-        .orderBy('dateTime', descending: true)
-        .get();
+  Stream<List<Map<String, dynamic>>> watchLearned(String uid) => learnedRef(uid)
+      .snapshots()
+      .map((s) => s.docs.map((d) => {...d.data(), 'id': d.id}).toList());
 
-    return snapshot.docs.map((doc) {
-      final data = doc.data();
-      return {
-        'id': doc.id,
-        'category': data['category'],
-        'amount': data['amount'],
-        'description': data['description'],
-        'dateTime': (data['dateTime'] as Timestamp).toDate(),
-        'createdAt': (data['createdAt'] as Timestamp).toDate(),
-        'updatedAt': data['updatedAt'] != null
-            ? (data['updatedAt'] as Timestamp).toDate()
-            : DateTime.now(),
-      };
-    }).toList();
-  }
+  Future<void> addLearned(String uid, Map<String, dynamic> data) =>
+      learnedRef(uid).doc().set({
+        ...data,
+        'createdAt': FieldValue.serverTimestamp(),
+        'updatedAt': FieldValue.serverTimestamp(),
+      });
 
-  /// Add user settings
-  Future<void> addUserSettings(
-      String uid, Map<String, dynamic> settings) async {
-    await _firestore
-        .collection('users')
-        .doc(uid)
-        .collection('settings')
-        .doc('user_settings')
-        .set({
-      ...settings,
-      'updatedAt': FieldValue.serverTimestamp(),
-    }, SetOptions(merge: true));
-  }
+  Future<void> updateLearned(
+          String uid, String id, Map<String, dynamic> data) =>
+      learnedRef(uid).doc(id).update({
+        ...data,
+        'updatedAt': FieldValue.serverTimestamp(),
+      });
 
-  /// Get user settings
-  Future<Map<String, dynamic>?> getUserSettings(String uid) async {
-    final doc = await _firestore
-        .collection('users')
-        .doc(uid)
-        .collection('settings')
-        .doc('user_settings')
-        .get();
-
-    if (!doc.exists) return null;
-
-    final data = doc.data()!;
-    return {
-      'currency': data['currency'],
-      'darkMode': data['darkMode'],
-      'userName': data['userName'],
-      'dailyLimit': data['dailyLimit'],
-      'weeklyLimit': data['weeklyLimit'],
-      'monthlyLimit': data['monthlyLimit'],
-      'yearlyLimit': data['yearlyLimit'],
-      'updatedAt': data['updatedAt'] != null
-          ? (data['updatedAt'] as Timestamp).toDate()
-          : DateTime.now(),
-    };
-  }
-
-  /// Add learned category
-  Future<void> addLearnedCategory(
-      String uid, String word, String category) async {
-    await _firestore
-        .collection('users')
-        .doc(uid)
-        .collection('learned')
-        .doc(word)
-        .set({
-      'category': category,
-      'frequency': FieldValue.increment(1),
-      'updatedAt': FieldValue.serverTimestamp(),
-    }, SetOptions(merge: true));
-  }
-
-  /// Get learned categories
-  Future<Map<String, String>> getLearnedCategories(String uid) async {
-    final snapshot = await _firestore
-        .collection('users')
-        .doc(uid)
-        .collection('learned')
-        .get();
-
-    final Map<String, String> learned = {};
-    for (final doc in snapshot.docs) {
-      final data = doc.data();
-      learned[doc.id] = data['category'] as String;
-    }
-    return learned;
-  }
-
-  /// Watch user settings stream
-  Stream<Map<String, dynamic>?> watchSettings(String uid) {
-    return _firestore
-        .collection('users')
-        .doc(uid)
-        .collection('settings')
-        .doc('user_settings')
-        .snapshots()
-        .map((snapshot) {
-      if (!snapshot.exists) return null;
-
-      final data = snapshot.data()!;
-      return {
-        'currency': data['currency'],
-        'darkMode': data['darkMode'],
-        'userName': data['userName'],
-        'dailyLimit': data['dailyLimit'],
-        'weeklyLimit': data['weeklyLimit'],
-        'monthlyLimit': data['monthlyLimit'],
-        'yearlyLimit': data['yearlyLimit'],
-        'updatedAt': data['updatedAt'] != null
-            ? (data['updatedAt'] as Timestamp).toDate()
-            : DateTime.now(),
-      };
-    });
-  }
-
-  /// Update user settings
-  Future<void> updateSettings(String uid, Map<String, dynamic> settings) async {
-    await _firestore
-        .collection('users')
-        .doc(uid)
-        .collection('settings')
-        .doc('user_settings')
-        .set({
-      ...settings,
-      'updatedAt': FieldValue.serverTimestamp(),
-    }, SetOptions(merge: true));
-  }
+  Future<void> deleteLearned(String uid, String id) =>
+      learnedRef(uid).doc(id).delete();
 }

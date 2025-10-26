@@ -33,7 +33,7 @@ class _AccountsScreenState extends State<AccountsScreen> {
             return const Center(child: CircularProgressIndicator());
           }
 
-          if (accountProvider.error.isNotEmpty) {
+          if (accountProvider.error?.isNotEmpty == true) {
             return Center(
               child: Column(
                 mainAxisAlignment: MainAxisAlignment.center,
@@ -528,8 +528,7 @@ class _AccountsScreenState extends State<AccountsScreen> {
                     updatedAt: DateTime.now(),
                   );
 
-                  await accountProvider.updateAccount(
-                      account.id, updatedAccount);
+                  await accountProvider.updateAccount(updatedAccount);
 
                   if (context.mounted) {
                     Navigator.pop(context);

@@ -1,18 +1,18 @@
 import 'package:flutter/material.dart';
-import 'dart:math';
-import 'package:firebase_auth/firebase_auth.dart';
-import 'package:shared_preferences/shared_preferences.dart';
 import '../data/firestore_data_source.dart';
 import '../service/currency_service.dart';
 
-class SettingsProvider with ChangeNotifier {
-  final SharedPreferences _prefs;
-  final FirestoreDataSource _firestoreDataSource = FirestoreDataSource();
-  String? _uid;
+class SettingsProvider extends ChangeNotifier {
+  final FirestoreDataSource _ds;
+  final String _uid;
+
+  SettingsProvider(this._ds, this._uid) {
+    _watch();
+  }
 
   bool _isDarkMode = false;
-  String _currency = 'USD';
-  String _previousCurrency = 'USD';
+  String _currency = 'VND'; // TODO(CURSOR): Set default currency
+  String _previousCurrency = 'VND';
   String _userName = '';
   double _monthlyIncome = 0.0;
   double _dailyLimit = 0.0;
@@ -20,24 +20,8 @@ class SettingsProvider with ChangeNotifier {
   double _monthlyLimit = 0.0;
   double _yearlyLimit = 0.0;
   double _exchangeRate = 1.0;
-
-  SettingsProvider(this._prefs) {
-    _initializeWithCurrentUser();
-  }
-
-  /// Initialize with current user
-  void _initializeWithCurrentUser() {
-    _uid = FirebaseAuth.instance.currentUser?.uid;
-    print('⚙️ SettingsProvider: Initializing with user UID: $_uid');
-    _loadSettings();
-  }
-
-  /// Update user when authentication state changes
-  void updateUser() {
-    print('⚙️ SettingsProvider: Updating user...');
-    _initializeWithCurrentUser();
-    notifyListeners();
-  }
+  bool _loading = true;
+  String? _error;
 
   bool get isDarkMode => _isDarkMode;
   String get currency => _currency;
@@ -49,232 +33,313 @@ class SettingsProvider with ChangeNotifier {
   double get monthlyLimit => _monthlyLimit;
   double get yearlyLimit => _yearlyLimit;
   double get exchangeRate => _exchangeRate;
+  bool get isLoading => _loading;
+  String? get error => _error;
 
-  /// Get spending limit based on period
+  void _watch() {
+    _loading = true;
+    notifyListeners();
+    _ds.watchSettings(_uid).listen((data) {
+      if (data != null) {
+        _isDarkMode = data['darkMode'] ?? false;
+        _currency = data['currency'] ?? 'VND';
+        _userName = data['displayName'] ?? '';
+        _monthlyIncome = (data['monthlyIncome'] ?? 0.0).toDouble();
+        _dailyLimit = (data['dailyLimit'] ?? 0.0).toDouble();
+        _weeklyLimit = (data['weeklyLimit'] ?? 0.0).toDouble();
+        _monthlyLimit = (data['monthlyLimit'] ?? 0.0).toDouble();
+        _yearlyLimit = (data['yearlyLimit'] ?? 0.0).toDouble();
+        _exchangeRate = (data['exchangeRate'] ?? 1.0).toDouble();
+      }
+      _loading = false;
+      _error = null;
+      notifyListeners();
+    }, onError: (e) {
+      _error = e.toString();
+      _loading = false;
+      notifyListeners();
+    });
+  }
+
+  Future<void> updateSettings(Map<String, dynamic> settings) async {
+    await _ds.updateSettings(_uid, settings);
+  }
+
+  Future<void> toggleDarkMode() async {
+    _isDarkMode = !_isDarkMode;
+    await updateSettings({'darkMode': _isDarkMode});
+    notifyListeners();
+  }
+
+  Future<void> setCurrency(String newCurrency) async {
+    if (newCurrency == _currency) return;
+
+    _previousCurrency = _currency;
+    _currency = newCurrency;
+
+    // Update exchange rate
+    await _updateExchangeRate();
+
+    await updateSettings({
+      'currency': _currency,
+      'previousCurrency': _previousCurrency,
+      'exchangeRate': _exchangeRate,
+    });
+    notifyListeners();
+  }
+
+  Future<void> _updateExchangeRate() async {
+    try {
+      _exchangeRate =
+          await CurrencyService.getExchangeRate(_previousCurrency, _currency);
+    } catch (e) {
+      print('Error updating exchange rate: $e');
+      _exchangeRate = 1.0; // Fallback to 1.0
+    }
+  }
+
+  Future<void> setUserName(String name) async {
+    _userName = name;
+    await updateSettings({'displayName': _userName});
+    notifyListeners();
+  }
+
+  Future<void> setMonthlyIncome(double income) async {
+    _monthlyIncome = income;
+    await updateSettings({'monthlyIncome': _monthlyIncome});
+    notifyListeners();
+  }
+
+  Future<void> setDailyLimit(double limit) async {
+    _dailyLimit = limit;
+    await updateSettings({'dailyLimit': _dailyLimit});
+    notifyListeners();
+  }
+
+  Future<void> setWeeklyLimit(double limit) async {
+    _weeklyLimit = limit;
+    await updateSettings({'weeklyLimit': _weeklyLimit});
+    notifyListeners();
+  }
+
+  Future<void> setMonthlyLimit(double limit) async {
+    _monthlyLimit = limit;
+    await updateSettings({'monthlyLimit': _monthlyLimit});
+    notifyListeners();
+  }
+
+  Future<void> setYearlyLimit(double limit) async {
+    _yearlyLimit = limit;
+    await updateSettings({'yearlyLimit': _yearlyLimit});
+    notifyListeners();
+  }
+
+  Future<void> setExchangeRate(double rate) async {
+    _exchangeRate = rate;
+    await updateSettings({'exchangeRate': _exchangeRate});
+    notifyListeners();
+  }
+
+  // Calculation methods
+  double convertAmount(double amount) {
+    return amount * _exchangeRate;
+  }
+
+  double convertFromPreviousCurrency(double amount) {
+    return amount * _exchangeRate;
+  }
+
+  double convertToPreviousCurrency(double amount) {
+    return amount / _exchangeRate;
+  }
+
+  // Limit calculation methods
+  double getSuggestedDailyLimit() {
+    if (_monthlyIncome == 0) return 0.0;
+    return _monthlyIncome / 30; // Rough daily limit based on monthly income
+  }
+
+  double getSuggestedWeeklyLimit() {
+    if (_monthlyIncome == 0) return 0.0;
+    return _monthlyIncome / 4; // Rough weekly limit based on monthly income
+  }
+
+  double getSuggestedMonthlyLimit() {
+    return _monthlyIncome * 0.8; // 80% of monthly income as spending limit
+  }
+
+  double getSuggestedYearlyLimit() {
+    if (_monthlyIncome == 0) return 0.0;
+    return _monthlyIncome * 12 * 0.8; // 80% of yearly income as spending limit
+  }
+
+  // Validation methods
+  bool isValidLimit(double limit) {
+    return limit >= 0 && limit <= _monthlyIncome * 12; // Max yearly income
+  }
+
+  bool isValidIncome(double income) {
+    return income >= 0 && income <= 10000000; // Max 10M per month
+  }
+
+  // Statistics methods
+  Map<String, double> getAllLimits() {
+    return {
+      'daily': _dailyLimit,
+      'weekly': _weeklyLimit,
+      'monthly': _monthlyLimit,
+      'yearly': _yearlyLimit,
+    };
+  }
+
+  Map<String, double> getSuggestedLimits() {
+    return {
+      'daily': getSuggestedDailyLimit(),
+      'weekly': getSuggestedWeeklyLimit(),
+      'monthly': getSuggestedMonthlyLimit(),
+      'yearly': getSuggestedYearlyLimit(),
+    };
+  }
+
+  // Currency methods
+  List<String> getSupportedCurrencies() {
+    return [
+      'VND',
+      'USD',
+      'EUR',
+      'GBP',
+      'JPY',
+      'KRW',
+      'CNY'
+    ]; // TODO(CURSOR): Add more currencies
+  }
+
+  String getCurrencySymbol() {
+    switch (_currency) {
+      case 'USD':
+        return '\$';
+      case 'EUR':
+        return '€';
+      case 'GBP':
+        return '£';
+      case 'JPY':
+        return '¥';
+      case 'KRW':
+        return '₩';
+      case 'CNY':
+        return '¥';
+      case 'VND':
+        return '₫';
+      default:
+        return _currency;
+    }
+  }
+
+  // Theme methods
+  ThemeMode getThemeMode() {
+    return _isDarkMode ? ThemeMode.dark : ThemeMode.light;
+  }
+
+  Brightness getBrightness() {
+    return _isDarkMode ? Brightness.dark : Brightness.light;
+  }
+
+  // Additional methods for backward compatibility
+  Future<void> setDarkMode(bool isDark) async {
+    _isDarkMode = isDark;
+    await updateSettings({'darkMode': _isDarkMode});
+    notifyListeners();
+  }
+
   double getSpendingLimit(String period) {
     switch (period.toLowerCase()) {
-      case 'day':
+      case 'daily':
         return _dailyLimit;
-      case 'week':
+      case 'weekly':
         return _weeklyLimit;
-      case 'month':
+      case 'monthly':
         return _monthlyLimit;
-      case 'year':
+      case 'yearly':
         return _yearlyLimit;
       default:
         return _monthlyLimit;
     }
   }
 
-  /// Get current spending limit (defaults to monthly)
-  double get spendingLimit => _monthlyLimit;
+  // Reset methods
+  Future<void> resetToDefaults() async {
+    _isDarkMode = false;
+    _currency = 'VND';
+    _previousCurrency = 'VND';
+    _userName = '';
+    _monthlyIncome = 0.0;
+    _dailyLimit = 0.0;
+    _weeklyLimit = 0.0;
+    _monthlyLimit = 0.0;
+    _yearlyLimit = 0.0;
+    _exchangeRate = 1.0;
 
-  /// Load settings from Firestore with fallback to SharedPreferences
-  void _loadSettings() {
-    if (_uid == null) {
-      _loadFromLocal();
-      return;
-    }
-
-    _firestoreDataSource.watchSettings(_uid!).listen((settings) {
-      if (settings != null) {
-        _isDarkMode = settings['darkMode'] ?? false;
-        _currency = settings['currency'] ?? 'USD';
-        _previousCurrency = settings['previousCurrency'] ?? 'USD';
-        _userName = settings['userName'] ?? _generateDefaultUsername();
-        _monthlyIncome = (settings['monthlyIncome'] ?? 0.0).toDouble();
-        _dailyLimit = (settings['dailyLimit'] ?? 0.0).toDouble();
-        _weeklyLimit = (settings['weeklyLimit'] ?? 0.0).toDouble();
-        _monthlyLimit = (settings['monthlyLimit'] ?? 0.0).toDouble();
-        _yearlyLimit = (settings['yearlyLimit'] ?? 0.0).toDouble();
-        _exchangeRate = (settings['exchangeRate'] ?? 1.0).toDouble();
-        notifyListeners();
-      } else {
-        _loadFromLocal();
-      }
+    await updateSettings({
+      'darkMode': _isDarkMode,
+      'currency': _currency,
+      'previousCurrency': _previousCurrency,
+      'displayName': _userName,
+      'monthlyIncome': _monthlyIncome,
+      'dailyLimit': _dailyLimit,
+      'weeklyLimit': _weeklyLimit,
+      'monthlyLimit': _monthlyLimit,
+      'yearlyLimit': _yearlyLimit,
+      'exchangeRate': _exchangeRate,
     });
-  }
-
-  /// Load settings from local SharedPreferences
-  void _loadFromLocal() {
-    _isDarkMode = _prefs.getBool('isDarkMode') ?? false;
-    _currency = _prefs.getString('currency') ?? 'USD';
-    _previousCurrency = _prefs.getString('previousCurrency') ?? 'USD';
-    _userName = _prefs.getString('userName') ?? _generateDefaultUsername();
-    _monthlyIncome = _prefs.getDouble('monthlyIncome') ?? 0.0;
-    _dailyLimit = _prefs.getDouble('dailyLimit') ?? 0.0;
-    _weeklyLimit = _prefs.getDouble('weeklyLimit') ?? 0.0;
-    _monthlyLimit = _prefs.getDouble('monthlyLimit') ?? 0.0;
-    _yearlyLimit = _prefs.getDouble('yearlyLimit') ?? 0.0;
-    _exchangeRate = _prefs.getDouble('exchangeRate') ?? 1.0;
     notifyListeners();
   }
 
-  static String _generateDefaultUsername() {
-    final random = Random();
-    final number = random.nextInt(9999).toString().padLeft(4, '0');
-    return 'User$number';
-  }
-
-  Future<void> setDarkMode(bool value) async {
-    _isDarkMode = value;
-    await _prefs.setBool('isDarkMode', value);
-
-    if (_uid != null) {
-      await _firestoreDataSource.updateSettings(_uid!, {'darkMode': value});
-    }
+  // Additional methods for backward compatibility
+  Future<void> setDarkModeCompat(bool isDark) async {
+    _isDarkMode = isDark;
+    await updateSettings({'darkMode': _isDarkMode});
     notifyListeners();
   }
 
-  Future<void> setCurrency(String value) async {
-    if (_currency != value) {
-      _previousCurrency = _currency;
-      _currency = value;
-
-      // Get exchange rate for conversion
-      try {
-        _exchangeRate =
-            await CurrencyService.getExchangeRate(_previousCurrency, _currency);
-        print(
-            '💱 SettingsProvider: Exchange rate from $_previousCurrency to $value: $_exchangeRate');
-      } catch (e) {
-        print('💱 SettingsProvider: Error getting exchange rate: $e');
-        _exchangeRate = 1.0;
-      }
-
-      await _prefs.setString('currency', value);
-      await _prefs.setString('previousCurrency', _previousCurrency);
-      await _prefs.setDouble('exchangeRate', _exchangeRate);
-
-      if (_uid != null) {
-        await _firestoreDataSource.updateSettings(_uid!, {
-          'currency': value,
-          'previousCurrency': _previousCurrency,
-          'exchangeRate': _exchangeRate,
-        });
-      }
-      notifyListeners();
+  double getSpendingLimitCompat(String period) {
+    switch (period.toLowerCase()) {
+      case 'daily':
+        return _dailyLimit;
+      case 'weekly':
+        return _weeklyLimit;
+      case 'monthly':
+        return _monthlyLimit;
+      case 'yearly':
+        return _yearlyLimit;
+      default:
+        return _monthlyLimit;
     }
   }
 
-  /// Convert all expenses to new currency (called from UI)
-  Future<void> convertExpensesToNewCurrency() async {
-    if (_previousCurrency != _currency) {
-      // This will be called from the UI when user confirms currency change
-      print(
-          '💱 SettingsProvider: Converting expenses from $_previousCurrency to $_currency');
-    }
-  }
-
-  Future<void> setUserName(String value) async {
-    _userName = value;
-    await _prefs.setString('userName', value);
-
-    if (_uid != null) {
-      await _firestoreDataSource.updateSettings(_uid!, {'userName': value});
-    }
+  // Reset methods
+  Future<void> resetToDefaultsCompat() async {
+    _isDarkMode = false;
+    _currency = 'VND';
+    _previousCurrency = 'VND';
+    _userName = '';
+    _monthlyIncome = 0.0;
+    _dailyLimit = 0.0;
+    _weeklyLimit = 0.0;
+    _monthlyLimit = 0.0;
+    _yearlyLimit = 0.0;
+    _exchangeRate = 1.0;
+    await updateSettings({
+      'darkMode': _isDarkMode,
+      'currency': _currency,
+      'previousCurrency': _previousCurrency,
+      'displayName': _userName,
+      'monthlyIncome': _monthlyIncome,
+      'dailyLimit': _dailyLimit,
+      'weeklyLimit': _weeklyLimit,
+      'monthlyLimit': _monthlyLimit,
+      'yearlyLimit': _yearlyLimit,
+      'exchangeRate': _exchangeRate,
+    });
     notifyListeners();
   }
-
-  Future<void> setMonthlyIncome(double value) async {
-    _monthlyIncome = value;
-    await _prefs.setDouble('monthlyIncome', value);
-
-    if (_uid != null) {
-      await _firestoreDataSource
-          .updateSettings(_uid!, {'monthlyIncome': value});
-    }
-    notifyListeners();
-  }
-
-  Future<void> setDailyLimit(double value) async {
-    _dailyLimit = value;
-    await _prefs.setDouble('dailyLimit', value);
-
-    if (_uid != null) {
-      await _firestoreDataSource.updateSettings(_uid!, {'dailyLimit': value});
-    }
-    notifyListeners();
-  }
-
-  Future<void> setWeeklyLimit(double value) async {
-    _weeklyLimit = value;
-    await _prefs.setDouble('weeklyLimit', value);
-
-    if (_uid != null) {
-      await _firestoreDataSource.updateSettings(_uid!, {'weeklyLimit': value});
-    }
-    notifyListeners();
-  }
-
-  Future<void> setMonthlyLimit(double value) async {
-    _monthlyLimit = value;
-    await _prefs.setDouble('monthlyLimit', value);
-
-    if (_uid != null) {
-      await _firestoreDataSource.updateSettings(_uid!, {'monthlyLimit': value});
-    }
-    notifyListeners();
-  }
-
-  Future<void> setYearlyLimit(double value) async {
-    _yearlyLimit = value;
-    await _prefs.setDouble('yearlyLimit', value);
-
-    if (_uid != null) {
-      await _firestoreDataSource.updateSettings(_uid!, {'yearlyLimit': value});
-    }
-    notifyListeners();
-  }
-
-  /// Convert amount using current exchange rate
-  double convertAmount(double amount) {
-    return amount * _exchangeRate;
-  }
-
-  /// Get formatted amount with currency symbol
-  String getFormattedAmount(double amount) {
-    final convertedAmount = convertAmount(amount);
-    final symbol = CurrencyService.getCurrencySymbol(_currency);
-    return '$symbol${convertedAmount.toStringAsFixed(2)}';
-  }
-
-  AlertStatus getAlertStatus(double currentAmount, double limit) {
-    if (limit <= 0) return AlertStatus.none;
-
-    final percentage = (currentAmount / limit) * 100;
-
-    if (percentage >= 100) {
-      return AlertStatus.critical;
-    } else if (percentage >= 75) {
-      return AlertStatus.warning;
-    } else if (percentage >= 50) {
-      return AlertStatus.caution;
-    }
-    return AlertStatus.normal;
-  }
-
-  String getAlertMessage(double currentAmount, double limit) {
-    if (limit <= 0) return '';
-
-    final percentage = (currentAmount / limit) * 100;
-    final remaining = limit - currentAmount;
-
-    if (percentage >= 100) {
-      return 'Exceeded limit by $currency${(currentAmount - limit).toStringAsFixed(2)}';
-    } else if (percentage >= 75) {
-      return '$currency${remaining.toStringAsFixed(2)} remaining';
-    } else if (percentage >= 50) {
-      return '$currency${remaining.toStringAsFixed(2)} remaining';
-    }
-    return '';
-  }
-}
-
-enum AlertStatus {
-  none,
-  normal,
-  caution,
-  warning,
-  critical,
 }
