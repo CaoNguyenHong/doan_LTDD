@@ -5,6 +5,7 @@ import 'package:provider/provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:spend_sage/auth/auth_gate.dart';
 import 'package:spend_sage/service/api_service.dart';
+import 'package:spend_sage/data/firestore_data_source.dart';
 import 'firebase_options.dart';
 
 void main() async {
@@ -27,11 +28,15 @@ void main() async {
   // Initialize AI Service
   final aiService = AIService();
 
+  // Initialize FirestoreDataSource
+  final firestoreDataSource = FirestoreDataSource();
+
   runApp(
     MultiProvider(
       providers: [
         Provider<SharedPreferences>.value(value: prefs),
         Provider<AIService>.value(value: aiService),
+        Provider<FirestoreDataSource>.value(value: firestoreDataSource),
       ],
       child: const MyApp(),
     ),
