@@ -3,6 +3,7 @@ import 'package:provider/provider.dart';
 import 'package:spend_sage/providers/settings_provider.dart';
 import '../providers/expense_provider.dart';
 import '../utils/currency_formatter.dart';
+import '../models/alert_status.dart';
 
 class TotalAmountDisplay extends StatelessWidget {
   const TotalAmountDisplay({super.key});

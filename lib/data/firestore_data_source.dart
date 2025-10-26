@@ -218,4 +218,16 @@ class FirestoreDataSource {
 
   Future<void> deleteLearned(String uid, String id) =>
       learnedRef(uid).doc(id).delete();
+
+  // --- Missing methods for ExpenseRepo compatibility ---
+  Future<void> deleteExpense(String uid, String id) =>
+      softDeleteExpense(uid, id);
+
+  Future<List<Map<String, dynamic>>> getExpenses(String uid) async {
+    final snapshot = await expenseRef(uid)
+        .where('deleted', isEqualTo: false)
+        .orderBy('dateTime', descending: true)
+        .get();
+    return snapshot.docs.map((d) => {...d.data(), 'id': d.id}).toList();
+  }
 }

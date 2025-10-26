@@ -29,6 +29,9 @@ class ExpenseProvider extends ChangeNotifier {
   DateTime? get customStartDate => _customStartDate;
   DateTime? get customEndDate => _customEndDate;
 
+  // Add missing getter for totalAmount
+  double get totalAmount => getTotalAmount();
+
   void _watch() {
     _loading = true;
     notifyListeners();
@@ -302,6 +305,24 @@ class ExpenseProvider extends ChangeNotifier {
         );
         await updateExpense(updatedExpense);
       }
+    }
+  }
+
+  // Add missing method for category correction
+  Future<void> correctExpenseCategory(
+      String expenseId, String newCategory) async {
+    final expenseIndex = _items.indexWhere((e) => e.id == expenseId);
+    if (expenseIndex != -1) {
+      final expense = _items[expenseIndex];
+      final updatedExpense = Expense(
+        id: expense.id,
+        category: newCategory,
+        amount: expense.amount,
+        description: expense.description,
+        dateTime: expense.dateTime,
+        currency: expense.currency,
+      );
+      await updateExpense(updatedExpense);
     }
   }
 }

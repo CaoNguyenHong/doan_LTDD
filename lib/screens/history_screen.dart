@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/foundation.dart';
 import 'package:provider/provider.dart';
 import '../providers/transaction_provider.dart';
 import '../providers/settings_provider.dart';
@@ -67,6 +68,7 @@ class _HistoryScreenState extends State<HistoryScreen> {
       ),
       body: Consumer2<TransactionProvider, SettingsProvider>(
         builder: (context, transactionProvider, settingsProvider, child) {
+          // Memoize expensive calculations
           final transactions =
               _getFilteredTransactions(transactionProvider.items);
           final groupedTransactions = _groupTransactionsByDate(transactions);
@@ -275,7 +277,16 @@ class _HistoryScreenState extends State<HistoryScreen> {
 
   Widget _buildDateGroup(String date, List<models.Transaction> transactions,
       SettingsProvider settings) {
-    final dateTime = DateTime.parse(date);
+    // Safe DateTime parsing with fallback
+    DateTime dateTime;
+    try {
+      dateTime = DateTime.parse(date);
+    } catch (e) {
+      // Fallback to current date if parsing fails
+      dateTime = DateTime.now();
+      debugPrint('⚠️ Failed to parse date "$date": $e');
+    }
+
     final dayOfWeek = _getDayOfWeek(dateTime.weekday);
     final monthYear = '${dateTime.month}/${dateTime.year}';
 

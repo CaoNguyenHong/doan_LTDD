@@ -13,7 +13,6 @@ import '../models/transaction.dart' as models;
 import '../utils/currency_formatter.dart';
 import 'transaction_add_sheet.dart';
 import 'transaction_edit_sheet.dart';
-import 'history_screen.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -244,15 +243,6 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
                                     ),
                                   );
                                 },
-                              ),
-                            ),
-                            const SizedBox(width: 12),
-                            Expanded(
-                              child: _buildQuickActionButton(
-                                icon: Icons.history,
-                                label: 'Lịch sử',
-                                color: Theme.of(context).colorScheme.tertiary,
-                                onTap: () => _navigateToHistory(context),
                               ),
                             ),
                           ],
@@ -946,15 +936,6 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
             child: const Text('Xóa', style: TextStyle(color: Colors.red)),
           ),
         ],
-      ),
-    );
-  }
-
-  void _navigateToHistory(BuildContext context) {
-    Navigator.push(
-      context,
-      MaterialPageRoute(
-        builder: (context) => const HistoryScreen(),
       ),
     );
   }

@@ -50,7 +50,7 @@ class HiveToFirestoreMigration {
       print('Migrating ${hiveExpenses.length} expenses...');
 
       for (final expense in hiveExpenses) {
-        await _firestoreDataSource.addExpense(uid, expense);
+        await _firestoreDataSource.addExpense(uid, expense.toMap());
       }
 
       print('Expenses migration completed');

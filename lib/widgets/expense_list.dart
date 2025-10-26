@@ -275,18 +275,23 @@ class ExpenseList extends StatelessWidget {
             final expenseProvider = context.read<ExpenseProvider>();
             final double? amount = double.tryParse(amountController.text);
             if (amount != null) {
-              // update the expense
-              await expenseProvider.updateExpense(
-                expense.id,
-                descriptionController.text,
-                amount,
-                selectedCategory,
+              // Create updated expense object
+              final updatedExpense = Expense(
+                id: expense.id,
+                category: selectedCategory,
+                amount: amount,
+                description: descriptionController.text,
+                dateTime: expense.dateTime,
+                currency: expense.currency,
               );
+
+              // update the expense
+              await expenseProvider.updateExpense(updatedExpense);
 
               // update category learning
               // Learn from this correction
               await expenseProvider.correctExpenseCategory(
-                expense.description,
+                expense.id,
                 selectedCategory,
               );
 

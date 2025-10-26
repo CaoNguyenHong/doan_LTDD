@@ -13,12 +13,12 @@ class FirestoreExpenseRepo implements ExpenseRepo {
 
   @override
   Future<void> addExpense(Expense expense) async {
-    await _dataSource.addExpense(uid, expense);
+    await _dataSource.addExpense(uid, expense.toMap());
   }
 
   @override
   Future<void> updateExpense(String id, Expense expense) async {
-    await _dataSource.updateExpense(uid, id, expense);
+    await _dataSource.updateExpense(uid, id, expense.toMap());
   }
 
   @override
@@ -29,25 +29,29 @@ class FirestoreExpenseRepo implements ExpenseRepo {
   @override
   Stream<List<Expense>> watchExpenses() {
     return _dataSource.watchExpenses(uid).map((dataList) {
-      return dataList.map((data) => Expense(
-        id: data['id'] as String,
-        category: data['category'] as String,
-        amount: (data['amount'] as num).toDouble(),
-        description: data['description'] as String,
-        dateTime: data['dateTime'] as DateTime,
-      )).toList();
+      return dataList
+          .map((data) => Expense(
+                id: data['id'] as String,
+                category: data['category'] as String,
+                amount: (data['amount'] as num).toDouble(),
+                description: data['description'] as String,
+                dateTime: data['dateTime'] as DateTime,
+              ))
+          .toList();
     });
   }
 
   @override
   Future<List<Expense>> getExpenses() async {
     final dataList = await _dataSource.getExpenses(uid);
-    return dataList.map((data) => Expense(
-      id: data['id'] as String,
-      category: data['category'] as String,
-      amount: (data['amount'] as num).toDouble(),
-      description: data['description'] as String,
-      dateTime: data['dateTime'] as DateTime,
-    )).toList();
+    return dataList
+        .map((data) => Expense(
+              id: data['id'] as String,
+              category: data['category'] as String,
+              amount: (data['amount'] as num).toDouble(),
+              description: data['description'] as String,
+              dateTime: data['dateTime'] as DateTime,
+            ))
+        .toList();
   }
 }

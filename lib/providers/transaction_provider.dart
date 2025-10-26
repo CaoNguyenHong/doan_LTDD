@@ -25,6 +25,11 @@ class TransactionProvider extends ChangeNotifier {
       _items = rows
           .map((data) {
             try {
+              // Ensure data has required fields
+              if (data['id'] == null) {
+                debugPrint('⚠️ Transaction missing ID: $data');
+                return null;
+              }
               return Transaction.fromMap(data['id'] as String, data);
             } catch (e) {
               debugPrint('⚠️ Transaction map error for ${data['id']}: $e');

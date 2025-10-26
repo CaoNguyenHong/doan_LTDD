@@ -36,8 +36,6 @@ class _SpendingLimitWidgetState extends State<SpendingLimitWidget> {
             _calculateTotals(transactions, _selectedPeriod, _selectedDate);
         final totalSpending = totals['total'] ?? 0.0;
         final isOverLimit = totalSpending > spendingLimit;
-        final remainingAmount = spendingLimit - totalSpending;
-        final exceededAmount = totalSpending - spendingLimit;
         final progressPercentage =
             spendingLimit > 0 ? (totalSpending / spendingLimit) : 0.0;
 
@@ -292,66 +290,6 @@ class _SpendingLimitWidgetState extends State<SpendingLimitWidget> {
           }
         },
       ),
-    );
-  }
-
-  Widget _buildProgressBar(double limit, double current, bool isOverLimit) {
-    final progress = (current / limit).clamp(0.0, 1.0);
-
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Row(
-          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-          children: [
-            Text(
-              'Mức chi tiêu',
-              style: TextStyle(
-                color: Colors.white.withOpacity(0.9),
-                fontSize: 12,
-              ),
-            ),
-            Text(
-              _formatCurrency(limit),
-              style: TextStyle(
-                color: Colors.white.withOpacity(0.9),
-                fontSize: 12,
-                fontWeight: FontWeight.bold,
-              ),
-            ),
-          ],
-        ),
-        const SizedBox(height: 8),
-        Container(
-          height: 8,
-          decoration: BoxDecoration(
-            color: Colors.white.withOpacity(0.3),
-            borderRadius: BorderRadius.circular(4),
-          ),
-          child: FractionallySizedBox(
-            alignment: Alignment.centerLeft,
-            widthFactor: progress,
-            child: Container(
-              decoration: BoxDecoration(
-                color: Colors.white,
-                borderRadius: BorderRadius.circular(4),
-              ),
-            ),
-          ),
-        ),
-      ],
-    );
-  }
-
-  Widget _buildBreakdown(Map<String, double> totals) {
-    return Row(
-      mainAxisAlignment: MainAxisAlignment.spaceAround,
-      children: [
-        _buildBreakdownItem('Thu', totals['income'] ?? 0.0, Colors.green),
-        _buildBreakdownItem('Chi', totals['expense'] ?? 0.0, Colors.red),
-        _buildBreakdownItem('Chuyển', totals['transfer'] ?? 0.0, Colors.blue),
-        _buildBreakdownItem('Hoàn', totals['refund'] ?? 0.0, Colors.orange),
-      ],
     );
   }
 

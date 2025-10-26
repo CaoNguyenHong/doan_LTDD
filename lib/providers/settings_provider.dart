@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import '../data/firestore_data_source.dart';
 import '../service/currency_service.dart';
+import '../models/alert_status.dart';
 
 class SettingsProvider extends ChangeNotifier {
   final FirestoreDataSource _ds;
@@ -341,5 +342,18 @@ class SettingsProvider extends ChangeNotifier {
       'exchangeRate': _exchangeRate,
     });
     notifyListeners();
+  }
+
+  // Add missing getAlertStatus method
+  AlertStatus getAlertStatus(double currentAmount, double limit) {
+    if (limit <= 0) return AlertStatus.none;
+
+    final percentage = (currentAmount / limit) * 100;
+
+    if (percentage >= 100) return AlertStatus.critical;
+    if (percentage >= 80) return AlertStatus.warning;
+    if (percentage >= 60) return AlertStatus.caution;
+    if (percentage >= 40) return AlertStatus.normal;
+    return AlertStatus.none;
   }
 }

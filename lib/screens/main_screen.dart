@@ -4,6 +4,7 @@ import 'charts_screen.dart';
 import 'accounts_screen.dart';
 import 'budgets_screen.dart';
 import 'profile_screen.dart';
+import 'history_screen.dart';
 
 class MainScreen extends StatefulWidget {
   const MainScreen({super.key});
@@ -19,6 +20,7 @@ class _MainScreenState extends State<MainScreen> with TickerProviderStateMixin {
 
   final List<Widget> _screens = [
     const HomeScreen(),
+    const HistoryScreen(),
     const ChartsScreen(),
     const AccountsScreen(),
     const BudgetsScreen(),
@@ -77,15 +79,16 @@ class _MainScreenState extends State<MainScreen> with TickerProviderStateMixin {
         ),
         child: SafeArea(
           child: Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
             child: Row(
-              mainAxisAlignment: MainAxisAlignment.spaceAround,
+              mainAxisAlignment: MainAxisAlignment.spaceEvenly,
               children: [
                 _buildNavItem(0, Icons.home_rounded, 'Trang chủ'),
-                _buildNavItem(1, Icons.analytics_rounded, 'Biểu đồ'),
-                _buildNavItem(2, Icons.account_balance_wallet_rounded, 'Ví'),
-                _buildNavItem(3, Icons.account_balance_rounded, 'Ngân sách'),
-                _buildNavItem(4, Icons.person_rounded, 'Hồ sơ'),
+                _buildNavItem(1, Icons.history_rounded, 'Lịch sử'),
+                _buildNavItem(2, Icons.analytics_rounded, 'Biểu đồ'),
+                _buildNavItem(3, Icons.account_balance_wallet_rounded, 'Ví'),
+                _buildNavItem(4, Icons.account_balance_rounded, 'Ngân sách'),
+                _buildNavItem(5, Icons.person_rounded, 'Hồ sơ'),
               ],
             ),
           ),
@@ -102,41 +105,44 @@ class _MainScreenState extends State<MainScreen> with TickerProviderStateMixin {
         onTap: () => _onTabTapped(index),
         child: AnimatedContainer(
           duration: const Duration(milliseconds: 200),
-          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
+          padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 6),
           decoration: BoxDecoration(
             color: isSelected
                 ? const Color(0xFF667eea).withOpacity(0.1)
                 : Colors.transparent,
-            borderRadius: BorderRadius.circular(12),
+            borderRadius: BorderRadius.circular(10),
           ),
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
               AnimatedContainer(
                 duration: const Duration(milliseconds: 200),
-                padding: const EdgeInsets.all(8),
+                padding: const EdgeInsets.all(6),
                 decoration: BoxDecoration(
                   color: isSelected
                       ? const Color(0xFF667eea)
                       : Colors.grey.shade400,
-                  borderRadius: BorderRadius.circular(8),
+                  borderRadius: BorderRadius.circular(6),
                 ),
                 child: Icon(
                   icon,
                   color: Colors.white,
-                  size: 20,
+                  size: 18,
                 ),
               ),
-              const SizedBox(height: 4),
+              const SizedBox(height: 3),
               Text(
                 label,
                 style: TextStyle(
-                  fontSize: 12,
+                  fontSize: 10,
                   fontWeight: isSelected ? FontWeight.w600 : FontWeight.w400,
                   color: isSelected
                       ? const Color(0xFF667eea)
                       : Colors.grey.shade600,
                 ),
+                textAlign: TextAlign.center,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
               ),
             ],
           ),
