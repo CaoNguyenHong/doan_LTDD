@@ -49,7 +49,7 @@ class AuthGate extends StatelessWidget {
 
         return MultiProvider(
           providers: [
-            // Use global FirestoreDataSource from main.dart
+            Provider(create: (_) => FirestoreDataSource()),
             ChangeNotifierProvider(
               create: (ctx) =>
                   TransactionProvider(ctx.read<FirestoreDataSource>(), uid),

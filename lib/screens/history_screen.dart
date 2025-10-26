@@ -199,7 +199,6 @@ class _HistoryScreenState extends State<HistoryScreen> {
           final isSelected = _selectedFilter == key;
 
           return Padding(
-            key: ValueKey('filter-chip-$key'),
             padding: const EdgeInsets.only(right: 8),
             child: FilterChip(
               label: Text(value),
@@ -493,23 +492,20 @@ class _HistoryScreenState extends State<HistoryScreen> {
           ),
 
           // Amount
-          Hero(
-            tag: 'tx-${transaction.id}',
-            child: GestureDetector(
-              onTap: () => _showTransactionOptions(transaction),
-              child: Container(
-                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-                decoration: BoxDecoration(
-                  color: amountColor.withOpacity(0.1),
-                  borderRadius: BorderRadius.circular(8),
-                ),
-                child: Text(
-                  '${isExpense ? '-' : '+'}${CurrencyFormatter.format(transaction.amount, currency: settings.currency)}',
-                  style: TextStyle(
-                    fontSize: 16,
-                    fontWeight: FontWeight.bold,
-                    color: amountColor,
-                  ),
+          GestureDetector(
+            onTap: () => _showTransactionOptions(transaction),
+            child: Container(
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+              decoration: BoxDecoration(
+                color: amountColor.withOpacity(0.1),
+                borderRadius: BorderRadius.circular(8),
+              ),
+              child: Text(
+                '${isExpense ? '-' : '+'}${CurrencyFormatter.format(transaction.amount, currency: settings.currency)}',
+                style: TextStyle(
+                  fontSize: 16,
+                  fontWeight: FontWeight.bold,
+                  color: amountColor,
                 ),
               ),
             ),
