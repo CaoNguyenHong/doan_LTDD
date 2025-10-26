@@ -3,6 +3,7 @@ import 'package:provider/provider.dart';
 import 'package:fl_chart/fl_chart.dart';
 import '../providers/settings_provider.dart';
 import '../providers/budget_provider.dart';
+import '../providers/transaction_provider.dart';
 import '../models/transaction.dart' as models;
 import '../utils/currency_formatter.dart';
 
@@ -470,17 +471,6 @@ class _ComprehensiveAnalyticsState extends State<ComprehensiveAnalytics>
         const SizedBox(width: 12),
         Expanded(
           child: _buildMetricCard(
-            'Trung bình/ngày',
-            CurrencyFormatter.format(analytics.dailyAverage,
-                currency: currency),
-            Icons.trending_up,
-            const Color(0xFFED8936),
-            analytics.dailyTrend,
-          ),
-        ),
-        const SizedBox(width: 12),
-        Expanded(
-          child: _buildMetricCard(
             'Số giao dịch',
             '${analytics.transactionCount}',
             Icons.receipt_long,
@@ -634,7 +624,7 @@ class _ComprehensiveAnalyticsState extends State<ComprehensiveAnalytics>
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
                           Text(
-                            category,
+                            _getCategoryDisplayName(category),
                             style: TextStyle(
                               fontSize: 16,
                               fontWeight: FontWeight.bold,
@@ -781,7 +771,7 @@ class _ComprehensiveAnalyticsState extends State<ComprehensiveAnalytics>
                 ),
               ),
               Text(
-                '${analytics.dailyTrendData.length} ngày',
+                '${analytics.dailyTrendData.length} ${_getPeriodUnit()}',
                 style: TextStyle(
                   color: Colors.grey.shade600,
                   fontSize: 12,
@@ -1178,11 +1168,15 @@ class _ComprehensiveAnalyticsState extends State<ComprehensiveAnalytics>
     } else if (previousPeriodTotal == 0 && currentPeriodTotal > 0) {
       changePercent = 100.0;
       previousPeriodTrend = '▲ 100%';
-      previousPeriodTrendColor = Colors.green;
+      previousPeriodTrendColor = widget.selectedTransactionType == 'expense'
+          ? Colors.red
+          : Colors.green;
     } else if (previousPeriodTotal > 0 && currentPeriodTotal == 0) {
       changePercent = -100.0;
       previousPeriodTrend = '▼ 100%';
-      previousPeriodTrendColor = Colors.red;
+      previousPeriodTrendColor = widget.selectedTransactionType == 'expense'
+          ? Colors.green
+          : Colors.red;
     } else {
       final raw =
           ((currentPeriodTotal - previousPeriodTotal) / previousPeriodTotal) *
@@ -1191,7 +1185,13 @@ class _ComprehensiveAnalyticsState extends State<ComprehensiveAnalytics>
       previousPeriodTrend = raw >= 0
           ? '▲ ${raw.toStringAsFixed(1)}%'
           : '▼ ${(-raw).toStringAsFixed(1)}%';
-      previousPeriodTrendColor = raw >= 0 ? Colors.green : Colors.red;
+      previousPeriodTrendColor = raw >= 0
+          ? (widget.selectedTransactionType == 'expense'
+              ? Colors.red
+              : Colors.green)
+          : (widget.selectedTransactionType == 'expense'
+              ? Colors.green
+              : Colors.red);
     }
 
     // Calculate trends
@@ -1218,14 +1218,14 @@ class _ComprehensiveAnalyticsState extends State<ComprehensiveAnalytics>
     final sortedCategories = Map.fromEntries(categoryBreakdown.entries.toList()
       ..sort((a, b) => b.value['amount'].compareTo(a.value['amount'])));
 
-    // Calculate daily trend data for sparkline
-    final dailyTrendData = _calculateDailyTrendData(currentPeriodTx);
-    final maxDailyAmount = dailyTrendData.isNotEmpty
-        ? dailyTrendData.map((e) => e.y).reduce((a, b) => a > b ? a : b)
+    // Calculate trend data for sparkline based on selected period
+    final trendData = _calculateTrendData(currentPeriodTx);
+    final maxAmount = trendData.isNotEmpty
+        ? trendData.map((e) => e.y).reduce((a, b) => a > b ? a : b)
         : 0.0;
 
     // Calculate overall trend
-    final overallTrend = _calculateOverallTrend(dailyTrendData);
+    final overallTrend = _calculateOverallTrend(trendData);
     final overallTrendColor =
         overallTrend.contains('Tăng') ? Colors.green : Colors.red;
 
@@ -1249,11 +1249,8 @@ class _ComprehensiveAnalyticsState extends State<ComprehensiveAnalytics>
       dailyAverage: dailyAverage,
       transactionCount: transactionCount,
       currentPeriodTrend: currentPeriodTrend,
-      currentPeriodTrendColor: currentPeriodTrend.contains('Tăng')
-          ? Colors.green
-          : currentPeriodTrend.contains('Giảm')
-              ? Colors.red
-              : Colors.grey,
+      currentPeriodTrendColor:
+          _getTrendColor(currentPeriodTrend, widget.selectedTransactionType),
       dailyTrend: dailyTrend,
       transactionTrend: transactionTrend,
       previousPeriodTotal: previousPeriodTotal,
@@ -1262,8 +1259,8 @@ class _ComprehensiveAnalyticsState extends State<ComprehensiveAnalytics>
       previousPeriodTrendColor: previousPeriodTrendColor,
       categoryBreakdown: sortedCategories,
       categoryTransactions: categoryTransactions,
-      dailyTrendData: dailyTrendData,
-      maxDailyAmount: maxDailyAmount,
+      dailyTrendData: trendData,
+      maxDailyAmount: maxAmount,
       overallTrend: overallTrend,
       overallTrendColor: overallTrendColor,
       budgetData: budgetData,
@@ -1273,6 +1270,68 @@ class _ComprehensiveAnalyticsState extends State<ComprehensiveAnalytics>
   int _getDaysInCurrentPeriod() {
     final r = _currentRange();
     return r.end.difference(r.start).inDays.clamp(1, 366);
+  }
+
+  List<FlSpot> _calculateTrendData(List<models.Transaction> transactions) {
+    switch (widget.selectedPeriod) {
+      case 'daily':
+        return _calculateHourlyTrendData(transactions);
+      case 'weekly':
+        return _calculateDailyTrendData(transactions);
+      case 'monthly':
+        return _calculateWeeklyTrendData(transactions);
+      case 'yearly':
+        return _calculateMonthlyTrendData(transactions);
+      default:
+        return _calculateDailyTrendData(transactions);
+    }
+  }
+
+  List<FlSpot> _calculateHourlyTrendData(
+      List<models.Transaction> transactions) {
+    final hourlyTotals = <int, double>{};
+    for (var transaction in transactions) {
+      final hour = transaction.dateTime.toLocal().hour;
+      hourlyTotals[hour] = (hourlyTotals[hour] ?? 0) + transaction.amount;
+    }
+
+    final sortedHours = hourlyTotals.keys.toList()..sort();
+    return sortedHours.asMap().entries.map((entry) {
+      return FlSpot(entry.key.toDouble(), hourlyTotals[entry.value]!);
+    }).toList();
+  }
+
+  List<FlSpot> _calculateWeeklyTrendData(
+      List<models.Transaction> transactions) {
+    final weeklyTotals = <DateTime, double>{};
+    for (var transaction in transactions) {
+      final date = transaction.dateTime.toLocal();
+      // Lấy thứ trong tuần (0 = Chủ nhật, 1 = Thứ hai, ..., 6 = Thứ bảy)
+      final weekStart = date.subtract(Duration(days: date.weekday - 1));
+      final weekKey = DateTime(weekStart.year, weekStart.month, weekStart.day);
+      weeklyTotals[weekKey] = (weeklyTotals[weekKey] ?? 0) + transaction.amount;
+    }
+
+    final sortedWeeks = weeklyTotals.keys.toList()..sort();
+    return sortedWeeks.asMap().entries.map((entry) {
+      return FlSpot(entry.key.toDouble(), weeklyTotals[entry.value]!);
+    }).toList();
+  }
+
+  List<FlSpot> _calculateMonthlyTrendData(
+      List<models.Transaction> transactions) {
+    final monthlyTotals = <DateTime, double>{};
+    for (var transaction in transactions) {
+      final date = transaction.dateTime.toLocal();
+      final monthKey = DateTime(date.year, date.month, 1);
+      monthlyTotals[monthKey] =
+          (monthlyTotals[monthKey] ?? 0) + transaction.amount;
+    }
+
+    final sortedMonths = monthlyTotals.keys.toList()..sort();
+    return sortedMonths.asMap().entries.map((entry) {
+      return FlSpot(entry.key.toDouble(), monthlyTotals[entry.value]!);
+    }).toList();
   }
 
   List<FlSpot> _calculateDailyTrendData(List<models.Transaction> transactions) {
@@ -1311,23 +1370,51 @@ class _ComprehensiveAnalyticsState extends State<ComprehensiveAnalytics>
   }
 
   String _calculateTrend(List<models.Transaction> transactions) {
-    if (transactions.length < 2) return 'Dữ liệu chưa đủ';
+    // Tính trend dựa trên so sánh với kỳ trước
+    final currentPeriodTotal =
+        transactions.fold(0.0, (sum, t) => sum + t.amount);
 
-    final sortedTransactions = List<models.Transaction>.from(transactions)
-      ..sort((a, b) => a.dateTime.compareTo(b.dateTime));
+    // Lấy dữ liệu kỳ trước để so sánh
+    final rangeCur = _currentRange();
+    final rangePrev = _previousRangeOf(rangeCur);
 
-    final firstHalf = sortedTransactions
-        .take(sortedTransactions.length ~/ 2)
-        .fold(0.0, (sum, t) => sum + t.amount);
-    final secondHalf = sortedTransactions
-        .skip(sortedTransactions.length ~/ 2)
-        .fold(0.0, (sum, t) => sum + t.amount);
+    // Lấy tất cả transactions để tìm kỳ trước
+    final allTransactions =
+        Provider.of<TransactionProvider>(context, listen: false).transactions;
+    final filteredByType = allTransactions
+        .where((t) => t.type == widget.selectedTransactionType)
+        .toList();
 
-    if (secondHalf > firstHalf * 1.1) return 'Tăng mạnh';
-    if (secondHalf > firstHalf * 1.05) return 'Tăng nhẹ';
-    if (secondHalf < firstHalf * 0.9) return 'Giảm mạnh';
-    if (secondHalf < firstHalf * 0.95) return 'Giảm nhẹ';
-    return 'Ổn định';
+    final previousPeriodTx = filteredByType.where((t) {
+      final dt = t.dateTime.toLocal();
+      return !dt.isBefore(rangePrev.start) && dt.isBefore(rangePrev.end);
+    }).toList();
+
+    final previousPeriodTotal =
+        previousPeriodTx.fold(0.0, (sum, t) => sum + t.amount);
+
+    // Tính phần trăm thay đổi
+    double changePercent;
+    if (previousPeriodTotal == 0 && currentPeriodTotal == 0) {
+      return 'Ổn định';
+    } else if (previousPeriodTotal == 0 && currentPeriodTotal > 0) {
+      return 'Tăng mạnh';
+    } else if (previousPeriodTotal > 0 && currentPeriodTotal == 0) {
+      return 'Giảm mạnh';
+    } else {
+      changePercent =
+          ((currentPeriodTotal - previousPeriodTotal) / previousPeriodTotal) *
+              100.0;
+
+      // Áp dụng quy tắc trend theo yêu cầu
+      if (changePercent.abs() >= 50) {
+        return changePercent > 0 ? 'Tăng mạnh' : 'Giảm mạnh';
+      } else if (changePercent.abs() >= 20) {
+        return changePercent > 0 ? 'Tăng nhẹ' : 'Giảm nhẹ';
+      } else {
+        return 'Ổn định';
+      }
+    }
   }
 
   String _calculateDailyTrend(List<models.Transaction> transactions) {
@@ -1362,34 +1449,99 @@ class _ComprehensiveAnalyticsState extends State<ComprehensiveAnalytics>
   }
 
   String _calculateTransactionTrend(List<models.Transaction> transactions) {
-    if (transactions.length < 7) return 'Dữ liệu chưa đủ';
+    // Tính trend số giao dịch dựa trên so sánh với kỳ trước
+    final currentPeriodCount = transactions.length;
 
-    final dailyCounts = <DateTime, int>{};
-    for (var transaction in transactions) {
-      final day = DateTime(transaction.dateTime.year,
-          transaction.dateTime.month, transaction.dateTime.day);
-      dailyCounts[day] = (dailyCounts[day] ?? 0) + 1;
+    // Lấy dữ liệu kỳ trước để so sánh
+    final rangeCur = _currentRange();
+    final rangePrev = _previousRangeOf(rangeCur);
+
+    // Lấy tất cả transactions để tìm kỳ trước
+    final allTransactions =
+        Provider.of<TransactionProvider>(context, listen: false).transactions;
+    final filteredByType = allTransactions
+        .where((t) => t.type == widget.selectedTransactionType)
+        .toList();
+
+    final previousPeriodTx = filteredByType.where((t) {
+      final dt = t.dateTime.toLocal();
+      return !dt.isBefore(rangePrev.start) && dt.isBefore(rangePrev.end);
+    }).toList();
+
+    final previousPeriodCount = previousPeriodTx.length;
+
+    // Tính phần trăm thay đổi số giao dịch
+    double changePercent;
+    if (previousPeriodCount == 0 && currentPeriodCount == 0) {
+      return 'Ổn định';
+    } else if (previousPeriodCount == 0 && currentPeriodCount > 0) {
+      return 'Tăng mạnh';
+    } else if (previousPeriodCount > 0 && currentPeriodCount == 0) {
+      return 'Giảm mạnh';
+    } else {
+      changePercent =
+          ((currentPeriodCount - previousPeriodCount) / previousPeriodCount) *
+              100.0;
+
+      // Áp dụng quy tắc trend theo yêu cầu
+      if (changePercent.abs() >= 50) {
+        return changePercent > 0 ? 'Tăng mạnh' : 'Giảm mạnh';
+      } else if (changePercent.abs() >= 20) {
+        return changePercent > 0 ? 'Tăng nhẹ' : 'Giảm nhẹ';
+      } else {
+        return 'Ổn định';
+      }
     }
+  }
 
-    final sortedDays = dailyCounts.keys.toList()..sort();
-    if (sortedDays.length < 2) return 'Dữ liệu chưa đủ';
+  Color _getTrendColor(String trend, String transactionType) {
+    if (trend.contains('Tăng')) {
+      // Đối với chi tiêu: tăng = đỏ (xấu), đối với thu nhập: tăng = xanh (tốt)
+      return transactionType == 'expense' ? Colors.red : Colors.green;
+    } else if (trend.contains('Giảm')) {
+      // Đối với chi tiêu: giảm = xanh (tốt), đối với thu nhập: giảm = đỏ (xấu)
+      return transactionType == 'expense' ? Colors.green : Colors.red;
+    } else {
+      return Colors.grey; // Ổn định
+    }
+  }
 
-    final recent = sortedDays.length >= 3
-        ? sortedDays
-            .skip(sortedDays.length - 3)
-            .fold(0, (sum, day) => sum + dailyCounts[day]!)
-        : sortedDays.fold(0, (sum, day) => sum + dailyCounts[day]!);
-    final earlier = sortedDays.length >= 3
-        ? sortedDays
-            .take(sortedDays.length - 3)
-            .fold(0, (sum, day) => sum + dailyCounts[day]!)
-        : 0;
+  String _getCategoryDisplayName(String category) {
+    switch (category.toLowerCase()) {
+      case 'food':
+        return 'Ăn uống';
+      case 'transport':
+        return 'Giao thông';
+      case 'utilities':
+        return 'Tiện ích';
+      case 'health':
+        return 'Sức khỏe';
+      case 'education':
+        return 'Giáo dục';
+      case 'shopping':
+        return 'Mua sắm';
+      case 'entertainment':
+        return 'Giải trí';
+      case 'other':
+        return 'Khác';
+      default:
+        return category; // Fallback to original if not found
+    }
+  }
 
-    if (recent > earlier * 1.1) return 'Tăng mạnh';
-    if (recent > earlier * 1.05) return 'Tăng nhẹ';
-    if (recent < earlier * 0.9) return 'Giảm mạnh';
-    if (recent < earlier * 0.95) return 'Giảm nhẹ';
-    return 'Ổn định';
+  String _getPeriodUnit() {
+    switch (widget.selectedPeriod) {
+      case 'daily':
+        return 'giờ';
+      case 'weekly':
+        return 'ngày';
+      case 'monthly':
+        return 'tuần';
+      case 'yearly':
+        return 'tháng';
+      default:
+        return 'ngày';
+    }
   }
 
   String _getPeriodDisplayName() {

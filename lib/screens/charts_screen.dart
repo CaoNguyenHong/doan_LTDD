@@ -11,7 +11,6 @@ import '../widgets/category_chart.dart';
 import '../widgets/chart_totals.dart';
 import '../widgets/filter_selector.dart';
 import '../widgets/comprehensive_analytics.dart';
-import '../widgets/spending_insights.dart';
 
 class ChartsScreen extends StatefulWidget {
   const ChartsScreen({super.key});
@@ -40,7 +39,6 @@ class _ChartsScreenState extends State<ChartsScreen>
   final List<String> _tabs = [
     'Tổng quan',
     'Phân tích',
-    'Thông tin',
   ];
 
   @override
@@ -299,8 +297,6 @@ class _ChartsScreenState extends State<ChartsScreen>
       case 1:
         // Truyền toàn bộ transactions cho ComprehensiveAnalytics để có đủ dữ liệu cho cả 2 kỳ
         return _buildAnalyticsTab(transactions, settingsProvider);
-      case 2:
-        return _buildInsightsTab(filteredTransactions, settingsProvider);
       default:
         return _buildOverviewTab(filteredTransactions, settingsProvider);
     }
@@ -632,27 +628,6 @@ class _ChartsScreenState extends State<ChartsScreen>
       selectedDate: _selectedDate,
       selectedWeekStart: _selectedWeekStart,
       selectedMonthStart: _selectedMonthStart,
-    );
-  }
-
-  Widget _buildInsightsTab(List<models.Transaction> transactions,
-      SettingsProvider settingsProvider) {
-    final expenses = _convertTransactionsToExpenses(transactions);
-
-    return Column(
-      children: [
-        // Spending Insights
-        if (expenses.isNotEmpty) ...[
-          SpendingInsights(expenses: expenses),
-          const SizedBox(height: 20),
-        ],
-
-        // Category Chart
-        if (expenses.isNotEmpty) ...[
-          CategoryChart(expenses: expenses),
-          const SizedBox(height: 20),
-        ],
-      ],
     );
   }
 
