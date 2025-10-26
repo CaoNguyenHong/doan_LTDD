@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_app_check/firebase_app_check.dart';
+import 'package:provider/provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:spend_sage/auth/auth_gate.dart';
 import 'package:spend_sage/service/api_service.dart';
@@ -26,18 +27,19 @@ void main() async {
   // Initialize AI Service
   final aiService = AIService();
 
-  runApp(MyApp(aiService: aiService, prefs: prefs));
+  runApp(
+    MultiProvider(
+      providers: [
+        Provider<SharedPreferences>.value(value: prefs),
+        Provider<AIService>.value(value: aiService),
+      ],
+      child: const MyApp(),
+    ),
+  );
 }
 
 class MyApp extends StatelessWidget {
-  final AIService aiService;
-  final SharedPreferences prefs;
-
-  const MyApp({
-    super.key,
-    required this.aiService,
-    required this.prefs,
-  });
+  const MyApp({super.key});
 
   @override
   Widget build(BuildContext context) {
