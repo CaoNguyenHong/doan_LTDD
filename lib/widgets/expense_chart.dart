@@ -1,9 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:fl_chart/fl_chart.dart';
 import 'package:spend_sage/hive/expense.dart';
-import 'package:provider/provider.dart';
-import '../providers/expense_provider.dart';
-import '../providers/settings_provider.dart';
+import '../utils/currency_formatter.dart';
 
 class ExpenseChart extends StatefulWidget {
   final List<Expense> expenses;
@@ -42,209 +40,198 @@ class _ExpenseChartState extends State<ExpenseChart>
 
   @override
   Widget build(BuildContext context) {
-    return Consumer2<ExpenseProvider, SettingsProvider>(
-      builder: (context, provider, settingsProvider, _) {
-        final filterMode = provider.filterMode;
-        final groupedData = _groupExpenses(widget.expenses, filterMode);
-        final totalAmount =
-            groupedData.values.fold(0.0, (sum, amount) => sum + amount);
-        final currency = settingsProvider.currency;
+    final groupedData = _groupExpenses(widget.expenses, _selectedPeriod);
+    final totalAmount =
+        groupedData.values.fold(0.0, (sum, amount) => sum + amount);
 
-        return Container(
-          decoration: BoxDecoration(
-            gradient: LinearGradient(
-              begin: Alignment.topLeft,
-              end: Alignment.bottomRight,
-              colors: [
-                Colors.white,
-                Colors.grey.shade50,
-              ],
-            ),
-            borderRadius: BorderRadius.circular(20),
-            boxShadow: [
-              BoxShadow(
-                color: Colors.black.withOpacity(0.1),
-                blurRadius: 20,
-                offset: const Offset(0, 10),
-              ),
-            ],
+    return Container(
+      decoration: BoxDecoration(
+        gradient: LinearGradient(
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+          colors: [
+            Colors.white,
+            Colors.grey.shade50,
+          ],
+        ),
+        borderRadius: BorderRadius.circular(20),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.1),
+            blurRadius: 20,
+            offset: const Offset(0, 10),
           ),
-          child: Padding(
-            padding: const EdgeInsets.all(24),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
+        ],
+      ),
+      child: Padding(
+        padding: const EdgeInsets.all(24),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            // Header with period selector
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                // Header with period selector
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          'Xu hướng chi tiêu',
-                          style: Theme.of(context)
-                              .textTheme
-                              .headlineSmall
-                              ?.copyWith(
+                    Text(
+                      'Xu hướng chi tiêu',
+                      style:
+                          Theme.of(context).textTheme.headlineSmall?.copyWith(
                                 fontWeight: FontWeight.bold,
                                 color: const Color(0xFF2D3748),
                               ),
-                        ),
-                        const SizedBox(height: 4),
-                        Text(
-                          'Tổng: $currency${totalAmount.toStringAsFixed(2)}',
-                          style:
-                              Theme.of(context).textTheme.titleMedium?.copyWith(
-                                    color: Colors.grey.shade600,
-                                    fontWeight: FontWeight.w500,
-                                  ),
-                        ),
-                      ],
                     ),
-                    _buildPeriodSelector(),
+                    const SizedBox(height: 4),
+                    Text(
+                      'Tổng: ${CurrencyFormatter.format(totalAmount)}',
+                      style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                            color: Colors.grey.shade600,
+                            fontWeight: FontWeight.w500,
+                          ),
+                    ),
                   ],
                 ),
-                const SizedBox(height: 24),
+                _buildPeriodSelector(),
+              ],
+            ),
+            const SizedBox(height: 24),
 
-                // Chart
-                SizedBox(
-                  height: 300,
-                  child: FadeTransition(
-                    opacity: _fadeAnimation,
-                    child: BarChart(
-                      BarChartData(
-                        alignment: BarChartAlignment.spaceAround,
-                        maxY: _calculateMaxY(groupedData),
-                        barTouchData: BarTouchData(
-                          enabled: true,
-                          touchTooltipData: BarTouchTooltipData(
-                            tooltipBgColor: Colors.black87,
-                            tooltipRoundedRadius: 8,
-                            tooltipPadding: const EdgeInsets.symmetric(
-                              horizontal: 12,
-                              vertical: 8,
+            // Chart
+            SizedBox(
+              height: 300,
+              child: FadeTransition(
+                opacity: _fadeAnimation,
+                child: BarChart(
+                  BarChartData(
+                    alignment: BarChartAlignment.spaceAround,
+                    maxY: _calculateMaxY(groupedData),
+                    barTouchData: BarTouchData(
+                      enabled: true,
+                      touchTooltipData: BarTouchTooltipData(
+                        tooltipBgColor: Colors.black87,
+                        tooltipRoundedRadius: 8,
+                        tooltipPadding: const EdgeInsets.symmetric(
+                          horizontal: 12,
+                          vertical: 8,
+                        ),
+                        getTooltipItem: (group, groupIndex, rod, rodIndex) {
+                          final key = groupedData.keys.elementAt(group.x);
+                          final value = rod.toY;
+                          final percentage = totalAmount > 0
+                              ? (value / totalAmount * 100).toStringAsFixed(1)
+                              : '0.0';
+
+                          return BarTooltipItem(
+                            '$key\n${CurrencyFormatter.format(value)}\n$percentage%',
+                            const TextStyle(
+                              color: Colors.white,
+                              fontWeight: FontWeight.bold,
+                              fontSize: 12,
                             ),
-                            getTooltipItem: (group, groupIndex, rod, rodIndex) {
-                              final key = groupedData.keys.elementAt(group.x);
-                              final value = rod.toY;
-                              final percentage = totalAmount > 0
-                                  ? (value / totalAmount * 100)
-                                      .toStringAsFixed(1)
-                                  : '0.0';
-
-                              return BarTooltipItem(
-                                '$key\n$currency${value.toStringAsFixed(2)}\n$percentage%',
-                                const TextStyle(
-                                  color: Colors.white,
-                                  fontWeight: FontWeight.bold,
-                                  fontSize: 12,
+                          );
+                        },
+                      ),
+                      touchCallback: (event, response) {
+                        if (response?.spot != null) {
+                          setState(() {
+                            _touchedIndex =
+                                response!.spot!.touchedBarGroupIndex;
+                          });
+                        }
+                      },
+                    ),
+                    titlesData: FlTitlesData(
+                      show: true,
+                      bottomTitles: AxisTitles(
+                        sideTitles: SideTitles(
+                          showTitles: true,
+                          getTitlesWidget: (value, meta) {
+                            final index = value.toInt();
+                            if (index >= 0 && index < groupedData.keys.length) {
+                              return Padding(
+                                padding: const EdgeInsets.only(top: 8),
+                                child: Text(
+                                  groupedData.keys.elementAt(index),
+                                  style: TextStyle(
+                                    color: Colors.grey.shade600,
+                                    fontSize: 11,
+                                    fontWeight: FontWeight.w500,
+                                  ),
                                 ),
                               );
-                            },
-                          ),
-                          touchCallback: (event, response) {
-                            if (response?.spot != null) {
-                              setState(() {
-                                _touchedIndex =
-                                    response!.spot!.touchedBarGroupIndex;
-                              });
                             }
+                            return const Text('');
                           },
+                          reservedSize: 30,
                         ),
-                        titlesData: FlTitlesData(
-                          show: true,
-                          bottomTitles: AxisTitles(
-                            sideTitles: SideTitles(
-                              showTitles: true,
-                              getTitlesWidget: (value, meta) {
-                                final index = value.toInt();
-                                if (index >= 0 &&
-                                    index < groupedData.keys.length) {
-                                  return Padding(
-                                    padding: const EdgeInsets.only(top: 8),
-                                    child: Text(
-                                      groupedData.keys.elementAt(index),
-                                      style: TextStyle(
-                                        color: Colors.grey.shade600,
-                                        fontSize: 11,
-                                        fontWeight: FontWeight.w500,
-                                      ),
-                                    ),
-                                  );
-                                }
-                                return const Text('');
-                              },
-                              reservedSize: 30,
-                            ),
-                          ),
-                          leftTitles: AxisTitles(
-                            sideTitles: SideTitles(
-                              showTitles: true,
-                              getTitlesWidget: (value, meta) {
-                                if (value.toInt() % 100 == 0 ||
-                                    value.toInt() == 0) {
-                                  return Text(
-                                    '\$${value.toInt()}',
-                                    style: TextStyle(
-                                      color: Colors.grey.shade600,
-                                      fontSize: 10,
-                                      fontWeight: FontWeight.w500,
-                                    ),
-                                  );
-                                }
-                                return const Text('');
-                              },
-                              reservedSize: 40,
-                            ),
-                          ),
-                          rightTitles: const AxisTitles(
-                            sideTitles: SideTitles(showTitles: false),
-                          ),
-                          topTitles: const AxisTitles(
-                            sideTitles: SideTitles(showTitles: false),
-                          ),
-                        ),
-                        borderData: FlBorderData(
-                          show: true,
-                          border: Border(
-                            bottom: BorderSide(
-                              color: Colors.grey.shade200,
-                              width: 1,
-                            ),
-                            left: BorderSide(
-                              color: Colors.grey.shade200,
-                              width: 1,
-                            ),
-                          ),
-                        ),
-                        barGroups: _createBarGroups(groupedData),
-                        gridData: FlGridData(
-                          show: true,
-                          drawVerticalLine: false,
-                          horizontalInterval: _calculateMaxY(groupedData) / 5,
-                          getDrawingHorizontalLine: (value) {
-                            return FlLine(
-                              color: Colors.grey.shade100,
-                              strokeWidth: 1,
-                            );
+                      ),
+                      leftTitles: AxisTitles(
+                        sideTitles: SideTitles(
+                          showTitles: true,
+                          getTitlesWidget: (value, meta) {
+                            if (value.toInt() % 100 == 0 ||
+                                value.toInt() == 0) {
+                              return Text(
+                                '\$${value.toInt()}',
+                                style: TextStyle(
+                                  color: Colors.grey.shade600,
+                                  fontSize: 10,
+                                  fontWeight: FontWeight.w500,
+                                ),
+                              );
+                            }
+                            return const Text('');
                           },
+                          reservedSize: 40,
+                        ),
+                      ),
+                      rightTitles: const AxisTitles(
+                        sideTitles: SideTitles(showTitles: false),
+                      ),
+                      topTitles: const AxisTitles(
+                        sideTitles: SideTitles(showTitles: false),
+                      ),
+                    ),
+                    borderData: FlBorderData(
+                      show: true,
+                      border: Border(
+                        bottom: BorderSide(
+                          color: Colors.grey.shade200,
+                          width: 1,
+                        ),
+                        left: BorderSide(
+                          color: Colors.grey.shade200,
+                          width: 1,
                         ),
                       ),
                     ),
+                    barGroups: _createBarGroups(groupedData),
+                    gridData: FlGridData(
+                      show: true,
+                      drawVerticalLine: false,
+                      horizontalInterval: _calculateMaxY(groupedData) / 5,
+                      getDrawingHorizontalLine: (value) {
+                        return FlLine(
+                          color: Colors.grey.shade100,
+                          strokeWidth: 1,
+                        );
+                      },
+                    ),
                   ),
                 ),
-
-                // Insights
-                if (groupedData.isNotEmpty) ...[
-                  const SizedBox(height: 20),
-                  _buildInsights(groupedData, totalAmount, currency),
-                ],
-              ],
+              ),
             ),
-          ),
-        );
-      },
+
+            // Insights
+            if (groupedData.isNotEmpty) ...[
+              const SizedBox(height: 20),
+              _buildInsights(groupedData, totalAmount),
+            ],
+          ],
+        ),
+      ),
     );
   }
 
@@ -281,8 +268,7 @@ class _ExpenseChartState extends State<ExpenseChart>
     );
   }
 
-  Widget _buildInsights(
-      Map<String, double> groupedData, double totalAmount, String currency) {
+  Widget _buildInsights(Map<String, double> groupedData, double totalAmount) {
     if (groupedData.isEmpty) return const SizedBox.shrink();
 
     final maxEntry =
@@ -322,7 +308,7 @@ class _ExpenseChartState extends State<ExpenseChart>
                 child: _buildInsightItem(
                   'Cao nhất',
                   maxEntry.key,
-                  '$currency${maxEntry.value.toStringAsFixed(2)}',
+                  CurrencyFormatter.format(maxEntry.value),
                   Colors.red.shade600,
                 ),
               ),
@@ -330,7 +316,7 @@ class _ExpenseChartState extends State<ExpenseChart>
                 child: _buildInsightItem(
                   'Thấp nhất',
                   minEntry.key,
-                  '$currency${minEntry.value.toStringAsFixed(2)}',
+                  CurrencyFormatter.format(minEntry.value),
                   Colors.green.shade600,
                 ),
               ),
@@ -338,7 +324,7 @@ class _ExpenseChartState extends State<ExpenseChart>
                 child: _buildInsightItem(
                   'Trung bình',
                   '',
-                  '$currency${average.toStringAsFixed(2)}',
+                  CurrencyFormatter.format(average),
                   Colors.blue.shade600,
                 ),
               ),

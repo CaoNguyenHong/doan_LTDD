@@ -6,12 +6,15 @@ import 'package:spend_sage/service/adaptive_expense_parser.dart';
 import 'package:spend_sage/service/expense_repo.dart';
 import 'package:spend_sage/data/firestore_data_source.dart';
 import 'package:spend_sage/data/firestore_expense_repo.dart';
+import 'package:spend_sage/data/firestore_transaction_repo.dart';
+import 'package:spend_sage/models/transaction.dart' as models;
+import 'package:spend_sage/utils/transaction_converter.dart';
 import 'package:spend_sage/service/currency_service.dart';
 import 'package:uuid/uuid.dart';
 
 class ExpenseProvider with ChangeNotifier {
-  final AIService _aiService;
   ExpenseRepo? _expenseRepo;
+  FirestoreTransactionRepo? _transactionRepo;
   List<Expense> _expenses = [];
   String _filterMode = 'daily';
   DateTime _selectedDate = DateTime.now();
@@ -21,29 +24,28 @@ class ExpenseProvider with ChangeNotifier {
   DateTime? _customEndDate;
 
   /// Factory constructor for Firestore
-  ExpenseProvider.firestore() : _aiService = AIService(apiKey: '') {
+  ExpenseProvider.firestore() {
     _initializeWithCurrentUser();
   }
 
   /// Initialize with current user
   void _initializeWithCurrentUser() {
     final user = FirebaseAuth.instance.currentUser;
-    if (user != null) {
-      print('💰 ExpenseProvider: Initializing with user UID: ${user.uid}');
-      _expenseRepo = FirestoreExpenseRepo(
-        uid: user.uid,
-        dataSource: FirestoreDataSource(),
-      );
-      _watchExpenses();
-    } else {
-      print('💰 ExpenseProvider: No user found, using demo-user');
-      // Fallback to demo user for development
-      _expenseRepo = FirestoreExpenseRepo(
-        uid: 'demo-user',
-        dataSource: FirestoreDataSource(),
-      );
-      _watchExpenses();
-    }
+    final uid = user?.uid ?? 'demo-user';
+
+    print('💰 ExpenseProvider: Initializing with user UID: $uid');
+
+    // Initialize both repos
+    _expenseRepo = FirestoreExpenseRepo(
+      uid: uid,
+      dataSource: FirestoreDataSource(),
+    );
+
+    _transactionRepo = FirestoreTransactionRepo(uid: uid);
+
+    // Watch both expenses and transactions
+    _watchExpenses();
+    _watchTransactions();
   }
 
   /// Update user when authentication state changes
@@ -91,7 +93,7 @@ class ExpenseProvider with ChangeNotifier {
     required dynamic
         databaseService, // TODO(CURSOR): Remove when fully migrated
     required AIService aiService,
-  }) : _aiService = aiService {
+  }) {
     // TODO(CURSOR): This is deprecated, use ExpenseProvider.firestore() instead
     _loadExpenses();
   }
@@ -104,11 +106,29 @@ class ExpenseProvider with ChangeNotifier {
   double get totalAmount => _calculateTotal();
 
   Future<void> deleteExpense(String id) async {
-    if (_expenseRepo == null) return;
     _setLoading(true);
     try {
-      await _expenseRepo!.deleteExpense(id);
-      print('💰 ExpenseProvider: Expense deleted successfully: $id');
+      // Delete from transactions first (main data source)
+      if (_transactionRepo != null) {
+        try {
+          await _transactionRepo!.deleteTransaction(id);
+          print('💰 ExpenseProvider: Transaction deleted successfully: $id');
+        } catch (e) {
+          print('💰 ExpenseProvider: Transaction not found: $e');
+        }
+      }
+
+      // Also try to delete from expenses collection (legacy)
+      if (_expenseRepo != null) {
+        try {
+          await _expenseRepo!.deleteExpense(id);
+          print('💰 ExpenseProvider: Expense deleted successfully: $id');
+        } catch (e) {
+          print('💰 ExpenseProvider: Expense not found (legacy): $e');
+        }
+      }
+
+      print('💰 ExpenseProvider: Delete operation completed for: $id');
       _error = '';
     } catch (e) {
       print('💰 ExpenseProvider: Error deleting expense: $e');
@@ -125,19 +145,105 @@ class ExpenseProvider with ChangeNotifier {
   ) async {
     _setLoading(true);
     try {
-      final updatedExpense = Expense(
-        id: id,
-        category: category,
-        amount: amount,
-        description: description,
-        dateTime: DateTime.now(),
-      );
-      await _expenseRepo!.updateExpense(updatedExpense.id, updatedExpense);
+      // Update in transactions collection first (main data source)
+      if (_transactionRepo != null) {
+        try {
+          // Get existing transaction first
+          final existingTransaction =
+              await _transactionRepo!.getTransaction(id);
+          if (existingTransaction != null) {
+            // Update the transaction
+            final updatedTransaction = existingTransaction.copyWith(
+              description: description,
+              amount: amount,
+              categoryId: _mapCategoryToId(category),
+              updatedAt: DateTime.now(),
+            );
+            await _transactionRepo!.updateTransaction(id, updatedTransaction);
+            print('💰 ExpenseProvider: Transaction updated successfully: $id');
+          }
+        } catch (e) {
+          print('💰 ExpenseProvider: Transaction not found: $e');
+        }
+      }
+
+      // Also try to update in expenses collection (legacy)
+      if (_expenseRepo != null) {
+        try {
+          final updatedExpense = Expense(
+            id: id,
+            category: category,
+            amount: amount,
+            description: description,
+            dateTime: DateTime.now(),
+          );
+          await _expenseRepo!.updateExpense(updatedExpense.id, updatedExpense);
+          print('💰 ExpenseProvider: Expense updated successfully: $id');
+        } catch (e) {
+          print('💰 ExpenseProvider: Expense not found (legacy): $e');
+        }
+      }
+
+      print('💰 ExpenseProvider: Update operation completed for: $id');
       _error = '';
     } catch (e) {
-      _error = 'Failed to update expense: $e';
+      print('💰 ExpenseProvider: Error updating expense: $e');
+      _error = 'Không thể cập nhật chi tiêu: $e';
     }
     _setLoading(false);
+  }
+
+  /// Map category name to category ID
+  String _mapCategoryToId(String categoryName) {
+    // If category already has emoji, extract the ID
+    if (categoryName.contains('🍽️') || categoryName.contains('Ăn uống')) {
+      return 'food';
+    } else if (categoryName.contains('🚗') ||
+        categoryName.contains('Giao thông')) {
+      return 'transport';
+    } else if (categoryName.contains('💡') ||
+        categoryName.contains('Tiện ích')) {
+      return 'utilities';
+    } else if (categoryName.contains('🏥') ||
+        categoryName.contains('Sức khỏe')) {
+      return 'health';
+    } else if (categoryName.contains('📚') ||
+        categoryName.contains('Giáo dục')) {
+      return 'education';
+    } else if (categoryName.contains('🛍️') ||
+        categoryName.contains('Mua sắm')) {
+      return 'shopping';
+    } else if (categoryName.contains('🎬') ||
+        categoryName.contains('Giải trí')) {
+      return 'entertainment';
+    } else if (categoryName.contains('📝') || categoryName.contains('Khác')) {
+      return 'other';
+    }
+
+    // If category is already an ID, return as is
+    switch (categoryName.toLowerCase()) {
+      case 'food':
+        return 'food';
+      case 'transport':
+        return 'transport';
+      case 'utilities':
+        return 'utilities';
+      case 'health':
+        return 'health';
+      case 'education':
+        return 'education';
+      case 'shopping':
+        return 'shopping';
+      case 'entertainment':
+        return 'entertainment';
+      case 'salary':
+        return 'salary';
+      case 'investment':
+        return 'investment';
+      case 'other':
+      default:
+        return 'other';
+    }
   }
 
   void setFilterMode(String mode) {
@@ -177,6 +283,35 @@ class ExpenseProvider with ChangeNotifier {
         _error = 'Không thể tải chi tiêu: $error';
         _setLoading(false);
         notifyListeners();
+      },
+    );
+  }
+
+  /// Watch transactions from Firestore
+  void _watchTransactions() {
+    if (_transactionRepo == null) return;
+
+    _transactionRepo!.watchTransactions().listen(
+      (transactions) {
+        print(
+            '💰 ExpenseProvider: Received ${transactions.length} transactions');
+        // Convert transactions to expenses
+        final transactionExpenses = transactions
+            .where((t) => t.type == 'expense') // Only show expenses
+            .map((t) => TransactionConverter.transactionToExpense(t))
+            .toList();
+
+        // Replace expenses with transaction expenses
+        _expenses = transactionExpenses;
+        _expenses.sort(
+            (a, b) => b.dateTime.compareTo(a.dateTime)); // Sort by date desc
+
+        print(
+            '💰 ExpenseProvider: Updated expenses list with ${_expenses.length} items');
+        notifyListeners();
+      },
+      onError: (error) {
+        print('💰 ExpenseProvider: Error watching transactions: $error');
       },
     );
   }

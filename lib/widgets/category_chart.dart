@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:fl_chart/fl_chart.dart';
 import 'package:spend_sage/hive/expense.dart';
+import '../utils/transaction_converter.dart';
 
 class CategoryChart extends StatefulWidget {
   final List<Expense> expenses;
@@ -70,26 +71,29 @@ class _CategoryChartState extends State<CategoryChart>
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      'Phân bổ theo danh mục',
-                      style:
-                          Theme.of(context).textTheme.headlineSmall?.copyWith(
-                                fontWeight: FontWeight.bold,
-                                color: const Color(0xFF2D3748),
-                              ),
-                    ),
-                    const SizedBox(height: 4),
-                    Text(
-                      'Tổng: \$${total.toStringAsFixed(2)}',
-                      style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                            color: Colors.grey.shade600,
-                            fontWeight: FontWeight.w500,
-                          ),
-                    ),
-                  ],
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        'Phân bổ theo danh mục',
+                        style:
+                            Theme.of(context).textTheme.headlineSmall?.copyWith(
+                                  fontWeight: FontWeight.bold,
+                                  color: const Color(0xFF2D3748),
+                                ),
+                      ),
+                      const SizedBox(height: 4),
+                      Text(
+                        'Tổng: \$${total.toStringAsFixed(2)}',
+                        style:
+                            Theme.of(context).textTheme.titleMedium?.copyWith(
+                                  color: Colors.grey.shade600,
+                                  fontWeight: FontWeight.w500,
+                                ),
+                      ),
+                    ],
+                  ),
                 ),
                 if (_selectedCategory != null)
                   Container(
@@ -105,7 +109,7 @@ class _CategoryChartState extends State<CategoryChart>
                       ),
                     ),
                     child: Text(
-                      _getCategoryDisplayName(_selectedCategory!),
+                      TransactionConverter.mapCategory(_selectedCategory!),
                       style: TextStyle(
                         color: _getCategoryColor(_selectedCategory!),
                         fontSize: 12,
@@ -206,7 +210,7 @@ class _CategoryChartState extends State<CategoryChart>
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         Text(
-                          _getCategoryDisplayName(entry.key),
+                          TransactionConverter.mapCategory(entry.key),
                           style: TextStyle(
                             fontWeight:
                                 isSelected ? FontWeight.bold : FontWeight.w500,
@@ -336,23 +340,6 @@ class _CategoryChartState extends State<CategoryChart>
         return Icons.movie;
       default:
         return Icons.attach_money;
-    }
-  }
-
-  String _getCategoryDisplayName(String category) {
-    switch (category.toLowerCase()) {
-      case 'food':
-        return 'Ăn uống';
-      case 'transport':
-        return 'Giao thông';
-      case 'shopping':
-        return 'Mua sắm';
-      case 'utilities':
-        return 'Tiện ích';
-      case 'entertainment':
-        return 'Giải trí';
-      default:
-        return 'Khác';
     }
   }
 }

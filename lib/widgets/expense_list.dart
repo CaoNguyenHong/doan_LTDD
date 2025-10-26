@@ -84,7 +84,10 @@ class ExpenseList extends StatelessWidget {
                     fontWeight: FontWeight.bold,
                   ),
                 ),
-                onTap: () => _showEditDialog(context, expense),
+                onTap: () {
+                  print('🔧 ExpenseList: Tapped on expense: ${expense.id}');
+                  _showEditDialog(context, expense);
+                },
               ),
             );
           }).toList(),
@@ -94,13 +97,14 @@ class ExpenseList extends StatelessWidget {
   }
 
   void _showEditDialog(BuildContext context, Expense expense) {
+    print('🔧 ExpenseList: _showEditDialog called for expense: ${expense.id}');
     final TextEditingController descriptionController = TextEditingController(
       text: expense.description,
     );
     final TextEditingController amountController = TextEditingController(
       text: expense.amount.toString(),
     );
-    String selectedCategory = expense.category;
+    String selectedCategory = _mapCategoryNameToId(expense.category);
 
     Utilities.showAnimatedDialog(
       context: context,
@@ -385,45 +389,68 @@ class ExpenseList extends StatelessWidget {
   }
 
   String _getCategoryDisplayName(String category) {
+    // If category already has emoji, return as is
+    if (category.contains('🍽️') ||
+        category.contains('🚗') ||
+        category.contains('💡') ||
+        category.contains('🏥') ||
+        category.contains('📚') ||
+        category.contains('🛍️') ||
+        category.contains('🎬') ||
+        category.contains('📝')) {
+      return category;
+    }
+
+    // Otherwise, convert from ID to display name
     switch (category.toLowerCase()) {
       case 'food':
-        return 'Ăn uống';
+        return '🍽️ Ăn uống';
       case 'transport':
-        return 'Giao thông';
+        return '🚗 Giao thông';
       case 'utilities':
-        return 'Tiện ích';
+        return '💡 Tiện ích';
       case 'health':
-        return 'Sức khỏe';
+        return '🏥 Sức khỏe';
       case 'education':
-        return 'Giáo dục';
+        return '📚 Giáo dục';
       case 'shopping':
-        return 'Mua sắm';
+        return '🛍️ Mua sắm';
       case 'entertainment':
-        return 'Giải trí';
+        return '🎬 Giải trí';
       default:
-        return 'Khác';
+        return '📝 Khác';
+    }
+  }
+
+  String _mapCategoryNameToId(String categoryName) {
+    if (categoryName.contains('🍽️') || categoryName.contains('Ăn uống')) {
+      return 'food';
+    } else if (categoryName.contains('🚗') ||
+        categoryName.contains('Giao thông')) {
+      return 'transport';
+    } else if (categoryName.contains('💡') ||
+        categoryName.contains('Tiện ích')) {
+      return 'utilities';
+    } else if (categoryName.contains('🏥') ||
+        categoryName.contains('Sức khỏe')) {
+      return 'health';
+    } else if (categoryName.contains('📚') ||
+        categoryName.contains('Giáo dục')) {
+      return 'education';
+    } else if (categoryName.contains('🛍️') ||
+        categoryName.contains('Mua sắm')) {
+      return 'shopping';
+    } else if (categoryName.contains('🎬') ||
+        categoryName.contains('Giải trí')) {
+      return 'entertainment';
+    } else {
+      return 'other';
     }
   }
 
   IconData _getCategoryIcon(String category) {
-    switch (category.toLowerCase()) {
-      case 'food':
-        return Icons.restaurant;
-      case 'transport':
-        return Icons.directions_car;
-      case 'utilities':
-        return Icons.power;
-      case 'health':
-        return Icons.health_and_safety;
-      case 'education':
-        return Icons.school;
-      case 'shopping':
-        return Icons.shopping_bag;
-      case 'entertainment':
-        return Icons.movie;
-      default:
-        return Icons.attach_money;
-    }
+    // Always return default category icon
+    return Icons.category;
   }
 
   void _showDeleteConfirmation(BuildContext context, Expense expense) {

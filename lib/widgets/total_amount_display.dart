@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:spend_sage/providers/settings_provider.dart';
 import '../providers/expense_provider.dart';
+import '../utils/currency_formatter.dart';
 
 class TotalAmountDisplay extends StatelessWidget {
   const TotalAmountDisplay({super.key});
@@ -54,7 +55,7 @@ class TotalAmountDisplay extends StatelessWidget {
           child: Padding(
             padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
             child: Text(
-              '$currency${totalAmount.toStringAsFixed(2)}',
+              CurrencyFormatter.format(totalAmount, currency: currency),
               style: TextStyle(
                 fontSize: 20,
                 fontWeight: FontWeight.bold,

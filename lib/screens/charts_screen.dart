@@ -1,13 +1,17 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
-import 'package:spend_sage/providers/expense_provider.dart';
-import 'package:spend_sage/hive/expense.dart';
-import 'package:spend_sage/widgets/expense_chart.dart';
-import 'package:spend_sage/widgets/category_chart.dart';
-import 'package:spend_sage/widgets/chart_totals.dart';
-import 'package:spend_sage/widgets/filter_selector.dart';
-import 'package:spend_sage/widgets/advanced_analytics.dart';
-import 'package:spend_sage/widgets/spending_insights.dart';
+import '../providers/transaction_provider.dart';
+import '../providers/settings_provider.dart';
+import '../models/transaction.dart' as models;
+import '../hive/expense.dart';
+import '../utils/currency_formatter.dart';
+import '../utils/transaction_converter.dart';
+import '../widgets/expense_chart.dart';
+import '../widgets/category_chart.dart';
+import '../widgets/chart_totals.dart';
+import '../widgets/filter_selector.dart';
+import '../widgets/advanced_analytics.dart';
+import '../widgets/spending_insights.dart';
 
 class ChartsScreen extends StatefulWidget {
   const ChartsScreen({super.key});
@@ -60,9 +64,9 @@ class _ChartsScreenState extends State<ChartsScreen>
 
   @override
   Widget build(BuildContext context) {
-    return Consumer<ExpenseProvider>(
-      builder: (context, expenseProvider, _) {
-        final expenses = expenseProvider.expenses;
+    return Consumer2<TransactionProvider, SettingsProvider>(
+      builder: (context, transactionProvider, settingsProvider, _) {
+        final transactions = transactionProvider.transactions;
 
         return Scaffold(
           backgroundColor: const Color(0xFFF8F9FA),
@@ -190,7 +194,7 @@ class _ChartsScreenState extends State<ChartsScreen>
                     position: _slideAnimation,
                     child: Padding(
                       padding: const EdgeInsets.symmetric(horizontal: 20),
-                      child: _buildTabContent(expenses),
+                      child: _buildTabContent(transactions, settingsProvider),
                     ),
                   ),
                 ),
@@ -202,65 +206,259 @@ class _ChartsScreenState extends State<ChartsScreen>
     );
   }
 
-  Widget _buildTabContent(List<Expense> expenses) {
-    if (expenses.isEmpty) {
+  Widget _buildTabContent(List<models.Transaction> transactions,
+      SettingsProvider settingsProvider) {
+    if (transactions.isEmpty) {
       return _buildEmptyState();
     }
 
     switch (_selectedTab) {
       case 0:
-        return _buildOverviewTab(expenses);
+        return _buildOverviewTab(transactions, settingsProvider);
       case 1:
-        return _buildAnalyticsTab(expenses);
+        return _buildAnalyticsTab(transactions, settingsProvider);
       case 2:
-        return _buildInsightsTab(expenses);
+        return _buildInsightsTab(transactions, settingsProvider);
       default:
-        return _buildOverviewTab(expenses);
+        return _buildOverviewTab(transactions, settingsProvider);
     }
   }
 
-  Widget _buildOverviewTab(List<Expense> expenses) {
+  List<Expense> _convertTransactionsToExpenses(
+      List<models.Transaction> transactions) {
+    return transactions
+        .where((t) => t.type == 'expense')
+        .map((transaction) =>
+            TransactionConverter.transactionToExpense(transaction))
+        .toList();
+  }
+
+  Widget _buildOverviewTab(List<models.Transaction> transactions,
+      SettingsProvider settingsProvider) {
+    // Lọc chỉ chi tiêu (expenses) cho biểu đồ
+    final expenses = _convertTransactionsToExpenses(transactions);
+
     return Column(
       children: [
-        // Expense Trend Chart
-        ExpenseChart(expenses: expenses),
+        // Tổng quan tài chính
+        _buildFinancialSummary(transactions, settingsProvider),
         const SizedBox(height: 20),
+
+        // Expense Trend Chart
+        if (expenses.isNotEmpty) ...[
+          ExpenseChart(expenses: expenses),
+          const SizedBox(height: 20),
+        ],
 
         // Category Distribution Chart
-        CategoryChart(expenses: expenses),
-        const SizedBox(height: 20),
+        if (expenses.isNotEmpty) ...[
+          CategoryChart(expenses: expenses),
+          const SizedBox(height: 20),
+        ],
 
         // Category Totals
-        ChartTotals(expenses: expenses),
-        const SizedBox(height: 20),
+        if (expenses.isNotEmpty) ...[
+          ChartTotals(expenses: expenses),
+          const SizedBox(height: 20),
+        ],
       ],
     );
   }
 
-  Widget _buildAnalyticsTab(List<Expense> expenses) {
+  Widget _buildAnalyticsTab(List<models.Transaction> transactions,
+      SettingsProvider settingsProvider) {
+    final expenses = _convertTransactionsToExpenses(transactions);
+
     return Column(
       children: [
         // Advanced Analytics
-        AdvancedAnalytics(expenses: expenses),
-        const SizedBox(height: 20),
+        if (expenses.isNotEmpty) ...[
+          AdvancedAnalytics(expenses: expenses),
+          const SizedBox(height: 20),
+        ],
 
         // Category Totals
-        ChartTotals(expenses: expenses),
-        const SizedBox(height: 20),
+        if (expenses.isNotEmpty) ...[
+          ChartTotals(expenses: expenses),
+          const SizedBox(height: 20),
+        ],
       ],
     );
   }
 
-  Widget _buildInsightsTab(List<Expense> expenses) {
+  Widget _buildInsightsTab(List<models.Transaction> transactions,
+      SettingsProvider settingsProvider) {
+    final expenses = _convertTransactionsToExpenses(transactions);
+
     return Column(
       children: [
         // Spending Insights
-        SpendingInsights(expenses: expenses),
-        const SizedBox(height: 20),
+        if (expenses.isNotEmpty) ...[
+          SpendingInsights(expenses: expenses),
+          const SizedBox(height: 20),
+        ],
 
         // Category Chart
-        CategoryChart(expenses: expenses),
-        const SizedBox(height: 20),
+        if (expenses.isNotEmpty) ...[
+          CategoryChart(expenses: expenses),
+          const SizedBox(height: 20),
+        ],
+      ],
+    );
+  }
+
+  Widget _buildFinancialSummary(List<models.Transaction> transactions,
+      SettingsProvider settingsProvider) {
+    // Tính toán tổng thu nhập, chi tiêu, chuyển khoản, hoàn tiền
+    double totalIncome = 0;
+    double totalExpense = 0;
+    double totalTransfer = 0;
+    double totalRefund = 0;
+
+    for (final transaction in transactions) {
+      switch (transaction.type) {
+        case 'income':
+          totalIncome += transaction.amount;
+          break;
+        case 'expense':
+          totalExpense += transaction.amount;
+          break;
+        case 'transfer':
+          totalTransfer += transaction.amount;
+          break;
+        case 'refund':
+          totalRefund += transaction.amount;
+          break;
+      }
+    }
+
+    final netAmount = totalIncome + totalRefund - totalExpense;
+
+    return Container(
+      padding: const EdgeInsets.all(20),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(16),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.1),
+            blurRadius: 10,
+            offset: const Offset(0, 5),
+          ),
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            'Tổng quan tài chính',
+            style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                  fontWeight: FontWeight.bold,
+                  color: const Color(0xFF2D3748),
+                ),
+          ),
+          const SizedBox(height: 16),
+
+          // Thu nhập
+          _buildSummaryRow(
+            'Thu nhập',
+            totalIncome,
+            Colors.green,
+            Icons.trending_up,
+          ),
+          const SizedBox(height: 12),
+
+          // Chi tiêu
+          _buildSummaryRow(
+            'Chi tiêu',
+            totalExpense,
+            Colors.red,
+            Icons.trending_down,
+          ),
+          const SizedBox(height: 12),
+
+          // Chuyển khoản
+          _buildSummaryRow(
+            'Chuyển khoản',
+            totalTransfer,
+            Colors.blue,
+            Icons.swap_horiz,
+          ),
+          const SizedBox(height: 12),
+
+          // Hoàn tiền
+          _buildSummaryRow(
+            'Hoàn tiền',
+            totalRefund,
+            Colors.orange,
+            Icons.reply,
+          ),
+          const SizedBox(height: 16),
+
+          // Số dư thực tế
+          Container(
+            padding: const EdgeInsets.all(16),
+            decoration: BoxDecoration(
+              color: netAmount >= 0
+                  ? Colors.green.withOpacity(0.1)
+                  : Colors.red.withOpacity(0.1),
+              borderRadius: BorderRadius.circular(12),
+              border: Border.all(
+                color: netAmount >= 0
+                    ? Colors.green.withOpacity(0.3)
+                    : Colors.red.withOpacity(0.3),
+                width: 1,
+              ),
+            ),
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Text(
+                  'Số dư thực tế',
+                  style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                        fontWeight: FontWeight.bold,
+                        color: const Color(0xFF2D3748),
+                      ),
+                ),
+                Text(
+                  CurrencyFormatter.format(netAmount),
+                  style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                        fontWeight: FontWeight.bold,
+                        color: netAmount >= 0 ? Colors.green : Colors.red,
+                      ),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildSummaryRow(
+      String label, double amount, Color color, IconData icon) {
+    return Row(
+      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+      children: [
+        Row(
+          children: [
+            Icon(icon, color: color, size: 20),
+            const SizedBox(width: 8),
+            Text(
+              label,
+              style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                    color: const Color(0xFF2D3748),
+                  ),
+            ),
+          ],
+        ),
+        Text(
+          CurrencyFormatter.format(amount),
+          style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                fontWeight: FontWeight.bold,
+                color: color,
+              ),
+        ),
       ],
     );
   }

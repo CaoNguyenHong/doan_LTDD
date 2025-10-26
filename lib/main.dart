@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:flutter/foundation.dart';
 import 'package:firebase_core/firebase_core.dart';
 // import 'package:flutter_dotenv/flutter_dotenv.dart'; // TODO(CURSOR): Dùng --dart-define thay vì .env
 import 'package:provider/provider.dart';
@@ -8,6 +7,11 @@ import 'package:spend_sage/providers/expense_provider.dart';
 import 'package:spend_sage/providers/settings_provider.dart';
 import 'package:spend_sage/providers/analytics_provider.dart';
 import 'package:spend_sage/providers/notification_provider.dart';
+import 'package:spend_sage/providers/account_provider.dart';
+import 'package:spend_sage/providers/transaction_provider.dart';
+import 'package:spend_sage/providers/budget_provider.dart';
+import 'package:spend_sage/providers/recurring_provider.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:spend_sage/auth/auth_gate.dart';
 import 'package:spend_sage/service/api_service.dart';
 import 'package:spend_sage/service/database_service.dart';
@@ -100,6 +104,43 @@ class MyApp extends StatelessWidget {
           update: (context, expenseProvider, settingsProvider, previous) {
             return previous ??
                 NotificationProvider(expenseProvider, settingsProvider);
+          },
+        ),
+        // New providers for enhanced features
+        ChangeNotifierProvider(
+          create: (context) {
+            final user = FirebaseAuth.instance.currentUser;
+            if (user != null) {
+              return AccountProvider(uid: user.uid);
+            }
+            return AccountProvider(uid: 'demo-user');
+          },
+        ),
+        ChangeNotifierProvider(
+          create: (context) {
+            final user = FirebaseAuth.instance.currentUser;
+            if (user != null) {
+              return TransactionProvider(uid: user.uid);
+            }
+            return TransactionProvider(uid: 'demo-user');
+          },
+        ),
+        ChangeNotifierProvider(
+          create: (context) {
+            final user = FirebaseAuth.instance.currentUser;
+            if (user != null) {
+              return BudgetProvider(uid: user.uid);
+            }
+            return BudgetProvider(uid: 'demo-user');
+          },
+        ),
+        ChangeNotifierProvider(
+          create: (context) {
+            final user = FirebaseAuth.instance.currentUser;
+            if (user != null) {
+              return RecurringProvider(uid: user.uid);
+            }
+            return RecurringProvider(uid: 'demo-user');
           },
         ),
       ],

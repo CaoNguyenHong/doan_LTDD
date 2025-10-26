@@ -15,7 +15,14 @@ class Utilities {
       barrierColor: Colors.black54,
       transitionDuration: const Duration(milliseconds: 200),
       pageBuilder: (context, animation1, animation2) {
-        return Container();
+        return AlertDialog(
+          title: Text(
+            title,
+            textAlign: TextAlign.center,
+          ),
+          content: content,
+          actions: actions,
+        );
       },
       transitionBuilder: (context, animation1, animation2, child) {
         return ScaleTransition(

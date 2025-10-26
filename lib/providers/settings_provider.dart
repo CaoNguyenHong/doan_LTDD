@@ -50,6 +50,25 @@ class SettingsProvider with ChangeNotifier {
   double get yearlyLimit => _yearlyLimit;
   double get exchangeRate => _exchangeRate;
 
+  /// Get spending limit based on period
+  double getSpendingLimit(String period) {
+    switch (period.toLowerCase()) {
+      case 'day':
+        return _dailyLimit;
+      case 'week':
+        return _weeklyLimit;
+      case 'month':
+        return _monthlyLimit;
+      case 'year':
+        return _yearlyLimit;
+      default:
+        return _monthlyLimit;
+    }
+  }
+
+  /// Get current spending limit (defaults to monthly)
+  double get spendingLimit => _monthlyLimit;
+
   /// Load settings from Firestore with fallback to SharedPreferences
   void _loadSettings() {
     if (_uid == null) {

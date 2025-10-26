@@ -1,9 +1,8 @@
 import 'package:flutter/material.dart';
-import 'package:provider/provider.dart';
-import '../providers/expense_provider.dart';
-import '../providers/settings_provider.dart';
 import 'home_screen.dart';
 import 'charts_screen.dart';
+import 'accounts_screen.dart';
+import 'budgets_screen.dart';
 import 'profile_screen.dart';
 
 class MainScreen extends StatefulWidget {
@@ -21,6 +20,8 @@ class _MainScreenState extends State<MainScreen> with TickerProviderStateMixin {
   final List<Widget> _screens = [
     const HomeScreen(),
     const ChartsScreen(),
+    const AccountsScreen(),
+    const BudgetsScreen(),
     const ProfileScreen(),
   ];
 
@@ -82,7 +83,9 @@ class _MainScreenState extends State<MainScreen> with TickerProviderStateMixin {
               children: [
                 _buildNavItem(0, Icons.home_rounded, 'Trang chủ'),
                 _buildNavItem(1, Icons.analytics_rounded, 'Biểu đồ'),
-                _buildNavItem(2, Icons.person_rounded, 'Hồ sơ'),
+                _buildNavItem(2, Icons.account_balance_wallet_rounded, 'Ví'),
+                _buildNavItem(3, Icons.account_balance_rounded, 'Ngân sách'),
+                _buildNavItem(4, Icons.person_rounded, 'Hồ sơ'),
               ],
             ),
           ),
@@ -94,45 +97,49 @@ class _MainScreenState extends State<MainScreen> with TickerProviderStateMixin {
   Widget _buildNavItem(int index, IconData icon, String label) {
     final isSelected = _currentIndex == index;
 
-    return GestureDetector(
-      onTap: () => _onTabTapped(index),
-      child: AnimatedContainer(
-        duration: const Duration(milliseconds: 200),
-        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-        decoration: BoxDecoration(
-          color: isSelected
-              ? const Color(0xFF667eea).withOpacity(0.1)
-              : Colors.transparent,
-          borderRadius: BorderRadius.circular(12),
-        ),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            AnimatedContainer(
-              duration: const Duration(milliseconds: 200),
-              padding: const EdgeInsets.all(8),
-              decoration: BoxDecoration(
-                color:
-                    isSelected ? const Color(0xFF667eea) : Colors.grey.shade400,
-                borderRadius: BorderRadius.circular(8),
+    return Expanded(
+      child: GestureDetector(
+        onTap: () => _onTabTapped(index),
+        child: AnimatedContainer(
+          duration: const Duration(milliseconds: 200),
+          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
+          decoration: BoxDecoration(
+            color: isSelected
+                ? const Color(0xFF667eea).withOpacity(0.1)
+                : Colors.transparent,
+            borderRadius: BorderRadius.circular(12),
+          ),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              AnimatedContainer(
+                duration: const Duration(milliseconds: 200),
+                padding: const EdgeInsets.all(8),
+                decoration: BoxDecoration(
+                  color: isSelected
+                      ? const Color(0xFF667eea)
+                      : Colors.grey.shade400,
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: Icon(
+                  icon,
+                  color: Colors.white,
+                  size: 20,
+                ),
               ),
-              child: Icon(
-                icon,
-                color: Colors.white,
-                size: 20,
+              const SizedBox(height: 4),
+              Text(
+                label,
+                style: TextStyle(
+                  fontSize: 12,
+                  fontWeight: isSelected ? FontWeight.w600 : FontWeight.w400,
+                  color: isSelected
+                      ? const Color(0xFF667eea)
+                      : Colors.grey.shade600,
+                ),
               ),
-            ),
-            const SizedBox(height: 4),
-            Text(
-              label,
-              style: TextStyle(
-                fontSize: 12,
-                fontWeight: isSelected ? FontWeight.w600 : FontWeight.w400,
-                color:
-                    isSelected ? const Color(0xFF667eea) : Colors.grey.shade600,
-              ),
-            ),
-          ],
+            ],
+          ),
         ),
       ),
     );
