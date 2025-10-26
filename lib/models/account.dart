@@ -41,8 +41,12 @@ class Account {
       currency: map['currency'] ?? 'USD',
       balance: (map['balance'] ?? 0.0).toDouble(),
       isDefault: map['isDefault'] ?? false,
-      createdAt: (map['createdAt'] as Timestamp).toDate(),
-      updatedAt: (map['updatedAt'] as Timestamp).toDate(),
+      createdAt: map['createdAt'] != null
+          ? (map['createdAt'] as Timestamp).toDate()
+          : DateTime.now(),
+      updatedAt: map['updatedAt'] != null
+          ? (map['updatedAt'] as Timestamp).toDate()
+          : DateTime.now(),
     );
   }
 

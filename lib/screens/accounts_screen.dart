@@ -3,6 +3,8 @@ import 'package:provider/provider.dart';
 import 'package:uuid/uuid.dart';
 import '../models/account.dart';
 import '../providers/account_provider.dart';
+import '../providers/settings_provider.dart';
+import '../service/currency_service.dart';
 import '../utils/currency_formatter.dart';
 
 class AccountsScreen extends StatefulWidget {
@@ -128,6 +130,10 @@ class _AccountsScreenState extends State<AccountsScreen> {
   Widget _buildSummaryCard(
       BuildContext context, AccountProvider accountProvider) {
     final totalBalance = accountProvider.getTotalBalance();
+    final settingsProvider =
+        Provider.of<SettingsProvider>(context, listen: false);
+    final currencySymbol =
+        CurrencyService.getCurrencySymbol(settingsProvider.currency);
 
     return Container(
       width: double.infinity,
@@ -138,15 +144,15 @@ class _AccountsScreenState extends State<AccountsScreen> {
           end: Alignment.bottomRight,
           colors: [
             Theme.of(context).colorScheme.primary,
-            Theme.of(context).colorScheme.secondary,
+            Theme.of(context).colorScheme.primaryContainer,
           ],
         ),
         borderRadius: BorderRadius.circular(16),
         boxShadow: [
           BoxShadow(
-            color: Theme.of(context).colorScheme.primary.withOpacity(0.3),
-            blurRadius: 10,
-            offset: const Offset(0, 5),
+            color: Theme.of(context).colorScheme.primary.withOpacity(0.2),
+            blurRadius: 8,
+            offset: const Offset(0, 4),
           ),
         ],
       ),
@@ -155,35 +161,52 @@ class _AccountsScreenState extends State<AccountsScreen> {
         children: [
           Row(
             children: [
-              Icon(
-                Icons.account_balance_wallet,
-                color: Colors.white,
-                size: 28,
+              Container(
+                padding: const EdgeInsets.all(8),
+                decoration: BoxDecoration(
+                  color: Colors.white.withOpacity(0.2),
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: Icon(
+                  Icons.account_balance_wallet,
+                  color: Colors.white,
+                  size: 24,
+                ),
               ),
               const SizedBox(width: 12),
               Text(
                 'Tổng số dư',
                 style: Theme.of(context).textTheme.titleMedium?.copyWith(
                       color: Colors.white,
-                      fontWeight: FontWeight.w500,
+                      fontWeight: FontWeight.w600,
                     ),
               ),
             ],
           ),
           const SizedBox(height: 16),
           Text(
-            CurrencyFormatter.format(totalBalance, currency: '\$'),
+            CurrencyFormatter.format(totalBalance, currency: currencySymbol),
             style: Theme.of(context).textTheme.headlineLarge?.copyWith(
                   color: Colors.white,
                   fontWeight: FontWeight.bold,
                 ),
           ),
           const SizedBox(height: 8),
-          Text(
-            '${accountProvider.accounts.length} ví',
-            style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                  color: Colors.white70,
-                ),
+          Row(
+            children: [
+              Icon(
+                Icons.wallet,
+                color: Colors.white70,
+                size: 16,
+              ),
+              const SizedBox(width: 4),
+              Text(
+                '${accountProvider.accounts.length} ví',
+                style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                      color: Colors.white70,
+                    ),
+              ),
+            ],
           ),
         ],
       ),
@@ -192,109 +215,141 @@ class _AccountsScreenState extends State<AccountsScreen> {
 
   Widget _buildAccountCard(
       BuildContext context, Account account, AccountProvider accountProvider) {
+    final currencySymbol = CurrencyService.getCurrencySymbol(account.currency);
+
     return Card(
       margin: const EdgeInsets.only(bottom: 12),
-      elevation: 2,
+      elevation: 1,
       shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(12),
+        borderRadius: BorderRadius.circular(16),
       ),
-      child: ListTile(
-        leading: Container(
-          padding: const EdgeInsets.all(12),
-          decoration: BoxDecoration(
-            color: _getAccountColor(account.type).withOpacity(0.1),
-            borderRadius: BorderRadius.circular(8),
-          ),
-          child: Text(
-            account.typeIcon,
-            style: const TextStyle(fontSize: 24),
-          ),
-        ),
-        title: Row(
-          children: [
-            Text(
-              account.name,
-              style: const TextStyle(fontWeight: FontWeight.bold),
-            ),
-            if (account.isDefault) ...[
-              const SizedBox(width: 8),
+      child: InkWell(
+        borderRadius: BorderRadius.circular(16),
+        onTap: () => _showAccountDetails(context, account),
+        child: Padding(
+          padding: const EdgeInsets.all(16),
+          child: Row(
+            children: [
               Container(
-                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                padding: const EdgeInsets.all(12),
                 decoration: BoxDecoration(
-                  color: Colors.blue.shade100,
+                  color: _getAccountColor(account.type).withOpacity(0.1),
                   borderRadius: BorderRadius.circular(12),
                 ),
                 child: Text(
-                  'Mặc định',
-                  style: TextStyle(
-                    fontSize: 10,
-                    color: Colors.blue.shade700,
-                    fontWeight: FontWeight.bold,
-                  ),
+                  account.typeIcon,
+                  style: const TextStyle(fontSize: 24),
                 ),
               ),
+              const SizedBox(width: 16),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      children: [
+                        Expanded(
+                          child: Text(
+                            account.name,
+                            style: Theme.of(context)
+                                .textTheme
+                                .titleMedium
+                                ?.copyWith(
+                                  fontWeight: FontWeight.bold,
+                                ),
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                        ),
+                        if (account.isDefault) ...[
+                          const SizedBox(width: 8),
+                          Container(
+                            padding: const EdgeInsets.symmetric(
+                                horizontal: 8, vertical: 4),
+                            decoration: BoxDecoration(
+                              color: Theme.of(context)
+                                  .colorScheme
+                                  .primaryContainer,
+                              borderRadius: BorderRadius.circular(12),
+                            ),
+                            child: Text(
+                              'Mặc định',
+                              style: TextStyle(
+                                fontSize: 10,
+                                color: Theme.of(context)
+                                    .colorScheme
+                                    .onPrimaryContainer,
+                                fontWeight: FontWeight.bold,
+                              ),
+                            ),
+                          ),
+                        ],
+                      ],
+                    ),
+                    const SizedBox(height: 4),
+                    Text(
+                      account.typeDisplayName,
+                      style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                            color: Colors.grey.shade600,
+                          ),
+                    ),
+                    const SizedBox(height: 8),
+                    Text(
+                      '${CurrencyFormatter.format(account.balance, currency: currencySymbol)} ${account.currency}',
+                      style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                            fontWeight: FontWeight.bold,
+                            color: account.balance >= 0
+                                ? Theme.of(context).colorScheme.primary
+                                : Colors.red,
+                          ),
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(width: 8),
+              PopupMenuButton(
+                itemBuilder: (context) => [
+                  PopupMenuItem(
+                    value: 'set_default',
+                    child: Row(
+                      children: [
+                        Icon(
+                          Icons.star,
+                          color:
+                              account.isDefault ? Colors.orange : Colors.grey,
+                        ),
+                        const SizedBox(width: 8),
+                        Text(
+                            account.isDefault ? 'Bỏ mặc định' : 'Đặt mặc định'),
+                      ],
+                    ),
+                  ),
+                  PopupMenuItem(
+                    value: 'edit',
+                    child: Row(
+                      children: [
+                        const Icon(Icons.edit),
+                        const SizedBox(width: 8),
+                        const Text('Chỉnh sửa'),
+                      ],
+                    ),
+                  ),
+                  PopupMenuItem(
+                    value: 'delete',
+                    child: Row(
+                      children: [
+                        Icon(Icons.delete, color: Colors.red.shade600),
+                        const SizedBox(width: 8),
+                        Text('Xóa',
+                            style: TextStyle(color: Colors.red.shade600)),
+                      ],
+                    ),
+                  ),
+                ],
+                onSelected: (value) =>
+                    _handleAccountAction(value, account, accountProvider),
+              ),
             ],
-          ],
-        ),
-        subtitle: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(account.typeDisplayName),
-            const SizedBox(height: 4),
-            Text(
-              '${CurrencyFormatter.format(account.balance, currency: '\$')} ${account.currency}',
-              style: TextStyle(
-                fontWeight: FontWeight.bold,
-                color: account.balance >= 0 ? Colors.green : Colors.red,
-              ),
-            ),
-          ],
-        ),
-        trailing: PopupMenuButton(
-          itemBuilder: (context) => [
-            PopupMenuItem(
-              value: 'set_default',
-              child: Row(
-                children: [
-                  const Icon(Icons.star),
-                  const SizedBox(width: 8),
-                  Text(account.isDefault ? 'Bỏ mặc định' : 'Đặt mặc định'),
-                ],
-              ),
-            ),
-            PopupMenuItem(
-              value: 'adjust_balance',
-              child: Row(
-                children: [
-                  const Icon(Icons.edit),
-                  const SizedBox(width: 8),
-                  const Text('Điều chỉnh số dư'),
-                ],
-              ),
-            ),
-            PopupMenuItem(
-              value: 'edit',
-              child: Row(
-                children: [
-                  const Icon(Icons.edit),
-                  const SizedBox(width: 8),
-                  const Text('Chỉnh sửa'),
-                ],
-              ),
-            ),
-            PopupMenuItem(
-              value: 'delete',
-              child: Row(
-                children: [
-                  Icon(Icons.delete, color: Colors.red),
-                  const SizedBox(width: 8),
-                  Text('Xóa', style: TextStyle(color: Colors.red)),
-                ],
-              ),
-            ),
-          ],
-          onSelected: (value) =>
-              _handleAccountAction(value, account, accountProvider),
+          ),
         ),
       ),
     );
@@ -321,9 +376,6 @@ class _AccountsScreenState extends State<AccountsScreen> {
       case 'set_default':
         accountProvider.setDefaultAccount(account.id);
         break;
-      case 'adjust_balance':
-        _showAdjustBalanceDialog(context, account, accountProvider);
-        break;
       case 'edit':
         _showEditAccountDialog(context, account, accountProvider);
         break;
@@ -333,16 +385,81 @@ class _AccountsScreenState extends State<AccountsScreen> {
     }
   }
 
+  void _showAccountDetails(BuildContext context, Account account) {
+    final currencySymbol = CurrencyService.getCurrencySymbol(account.currency);
+
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: Row(
+          children: [
+            Text(account.typeIcon, style: const TextStyle(fontSize: 24)),
+            const SizedBox(width: 8),
+            Expanded(child: Text(account.name)),
+          ],
+        ),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            _buildDetailRow('Loại ví', account.typeDisplayName),
+            _buildDetailRow('Tiền tệ', '${account.currency} ($currencySymbol)'),
+            _buildDetailRow('Số dư',
+                '${CurrencyFormatter.format(account.balance, currency: currencySymbol)}'),
+            _buildDetailRow(
+                'Trạng thái', account.isDefault ? 'Ví mặc định' : 'Ví thường'),
+            _buildDetailRow('Ngày tạo',
+                '${account.createdAt.day}/${account.createdAt.month}/${account.createdAt.year}'),
+            _buildDetailRow('Cập nhật cuối',
+                '${account.updatedAt.day}/${account.updatedAt.month}/${account.updatedAt.year}'),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('Đóng'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildDetailRow(String label, String value) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 4),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          SizedBox(
+            width: 80,
+            child: Text(
+              '$label:',
+              style: const TextStyle(fontWeight: FontWeight.w500),
+            ),
+          ),
+          Expanded(
+            child: Text(value),
+          ),
+        ],
+      ),
+    );
+  }
+
   void _showAddAccountDialog(BuildContext context) {
     final nameController = TextEditingController();
     final balanceController = TextEditingController();
     String selectedType = 'cash';
-    String selectedCurrency = 'USD';
+    final settingsProvider =
+        Provider.of<SettingsProvider>(context, listen: false);
+    final accountProvider =
+        Provider.of<AccountProvider>(context, listen: false);
+    String selectedCurrency =
+        settingsProvider.currency; // Use app's default currency
     bool isDefault = false;
 
     showDialog(
       context: context,
-      builder: (context) => StatefulBuilder(
+      builder: (dialogContext) => StatefulBuilder(
         builder: (context, setState) => AlertDialog(
           title: const Text('Thêm ví mới'),
           content: SingleChildScrollView(
@@ -380,11 +497,14 @@ class _AccountsScreenState extends State<AccountsScreen> {
                     labelText: 'Tiền tệ',
                     border: OutlineInputBorder(),
                   ),
-                  items: const [
-                    DropdownMenuItem(value: 'USD', child: Text('USD - \$')),
-                    DropdownMenuItem(value: 'VND', child: Text('VND - ₫')),
-                    DropdownMenuItem(value: 'EUR', child: Text('EUR - €')),
-                  ],
+                  items:
+                      settingsProvider.getSupportedCurrencies().map((currency) {
+                    final symbol = CurrencyService.getCurrencySymbol(currency);
+                    return DropdownMenuItem(
+                      value: currency,
+                      child: Text('$currency - $symbol'),
+                    );
+                  }).toList(),
                   onChanged: (value) =>
                       setState(() => selectedCurrency = value!),
                 ),
@@ -425,13 +545,11 @@ class _AccountsScreenState extends State<AccountsScreen> {
                     updatedAt: DateTime.now(),
                   );
 
-                  final accountProvider =
-                      Provider.of<AccountProvider>(context, listen: false);
                   await accountProvider.addAccount(account);
 
-                  if (context.mounted) {
-                    Navigator.pop(context);
-                    ScaffoldMessenger.of(context).showSnackBar(
+                  if (dialogContext.mounted) {
+                    Navigator.pop(dialogContext);
+                    ScaffoldMessenger.of(dialogContext).showSnackBar(
                       const SnackBar(
                         content: Text('✅ Đã thêm ví thành công!'),
                         backgroundColor: Colors.green,
@@ -451,13 +569,20 @@ class _AccountsScreenState extends State<AccountsScreen> {
   void _showEditAccountDialog(
       BuildContext context, Account account, AccountProvider accountProvider) {
     final nameController = TextEditingController(text: account.name);
+    final balanceController = TextEditingController(
+      text: CurrencyFormatter.format(account.balance,
+              currency: CurrencyService.getCurrencySymbol(account.currency))
+          .replaceAll(CurrencyService.getCurrencySymbol(account.currency), ''),
+    );
     String selectedType = account.type;
     String selectedCurrency = account.currency;
     bool isDefault = account.isDefault;
+    final settingsProvider =
+        Provider.of<SettingsProvider>(context, listen: false);
 
     showDialog(
       context: context,
-      builder: (context) => StatefulBuilder(
+      builder: (dialogContext) => StatefulBuilder(
         builder: (context, setState) => AlertDialog(
           title: const Text('Chỉnh sửa ví'),
           content: SingleChildScrollView(
@@ -495,13 +620,28 @@ class _AccountsScreenState extends State<AccountsScreen> {
                     labelText: 'Tiền tệ',
                     border: OutlineInputBorder(),
                   ),
-                  items: const [
-                    DropdownMenuItem(value: 'USD', child: Text('USD - \$')),
-                    DropdownMenuItem(value: 'VND', child: Text('VND - ₫')),
-                    DropdownMenuItem(value: 'EUR', child: Text('EUR - €')),
-                  ],
+                  items:
+                      settingsProvider.getSupportedCurrencies().map((currency) {
+                    final symbol = CurrencyService.getCurrencySymbol(currency);
+                    return DropdownMenuItem(
+                      value: currency,
+                      child: Text('$currency - $symbol'),
+                    );
+                  }).toList(),
                   onChanged: (value) =>
                       setState(() => selectedCurrency = value!),
+                ),
+                const SizedBox(height: 16),
+                TextField(
+                  controller: balanceController,
+                  keyboardType: TextInputType.numberWithOptions(decimal: true),
+                  decoration: InputDecoration(
+                    labelText:
+                        'Số dư (${CurrencyService.getCurrencySymbol(selectedCurrency)})',
+                    border: const OutlineInputBorder(),
+                    prefixText:
+                        '${CurrencyService.getCurrencySymbol(selectedCurrency)} ',
+                  ),
                 ),
                 const SizedBox(height: 16),
                 CheckboxListTile(
@@ -514,7 +654,7 @@ class _AccountsScreenState extends State<AccountsScreen> {
           ),
           actions: [
             TextButton(
-              onPressed: () => Navigator.pop(context),
+              onPressed: () => Navigator.pop(dialogContext),
               child: const Text('Hủy'),
             ),
             ElevatedButton(
@@ -530,9 +670,15 @@ class _AccountsScreenState extends State<AccountsScreen> {
 
                   await accountProvider.updateAccount(updatedAccount);
 
-                  if (context.mounted) {
-                    Navigator.pop(context);
-                    ScaffoldMessenger.of(context).showSnackBar(
+                  // Update balance if changed
+                  final newBalance = double.tryParse(balanceController.text);
+                  if (newBalance != null && newBalance != account.balance) {
+                    await accountProvider.updateBalance(account.id, newBalance);
+                  }
+
+                  if (dialogContext.mounted) {
+                    Navigator.pop(dialogContext);
+                    ScaffoldMessenger.of(dialogContext).showSnackBar(
                       const SnackBar(
                         content: Text('✅ Đã cập nhật ví thành công!'),
                         backgroundColor: Colors.green,
@@ -545,61 +691,6 @@ class _AccountsScreenState extends State<AccountsScreen> {
             ),
           ],
         ),
-      ),
-    );
-  }
-
-  void _showAdjustBalanceDialog(
-      BuildContext context, Account account, AccountProvider accountProvider) {
-    final balanceController = TextEditingController(
-        text: CurrencyFormatter.format(account.balance, currency: '\$')
-            .replaceAll('\$', ''));
-
-    showDialog(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('Điều chỉnh số dư'),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Text('Ví: ${account.name}'),
-            const SizedBox(height: 16),
-            TextField(
-              controller: balanceController,
-              keyboardType: TextInputType.numberWithOptions(decimal: true),
-              decoration: const InputDecoration(
-                labelText: 'Số dư mới',
-                border: OutlineInputBorder(),
-              ),
-            ),
-          ],
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: const Text('Hủy'),
-          ),
-          ElevatedButton(
-            onPressed: () async {
-              final newBalance = double.tryParse(balanceController.text);
-              if (newBalance != null) {
-                await accountProvider.updateAccountBalance(
-                    account.id, newBalance);
-
-                if (context.mounted) {
-                  Navigator.pop(context);
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(
-                      content: Text('✅ Đã cập nhật số dư thành công!'),
-                      backgroundColor: Colors.green,
-                    ),
-                  );
-                }
-              }
-            },
-            child: const Text('Cập nhật'),
-          ),
-        ],
       ),
     );
   }

@@ -13,22 +13,30 @@ class FirestoreDataSource {
 
   Stream<List<Map<String, dynamic>>> watchTx(String uid,
       {DateTime? from, DateTime? to}) {
-    Query<Map<String, dynamic>> q = txRef(uid)
-        .where('deleted', isEqualTo: false)
-        .orderBy('dateTime', descending: true);
+    Query<Map<String, dynamic>> q =
+        txRef(uid).where('deleted', isEqualTo: false);
+
     if (from != null)
       q = q.where('dateTime',
           isGreaterThanOrEqualTo: Timestamp.fromDate(from.toUtc()));
     if (to != null)
       q = q.where('dateTime',
           isLessThanOrEqualTo: Timestamp.fromDate(to.toUtc()));
-    return q
-        .snapshots()
-        .map((s) => s.docs.map((d) => {...d.data(), 'id': d.id}).toList());
+
+    return q.snapshots().map((s) {
+      final docs = s.docs.map((d) => {...d.data(), 'id': d.id}).toList();
+      // Sort manually to avoid index requirement
+      docs.sort((a, b) {
+        final aDateTime = a['dateTime'] as Timestamp?;
+        final bDateTime = b['dateTime'] as Timestamp?;
+        if (aDateTime == null || bDateTime == null) return 0;
+        return bDateTime.compareTo(aDateTime); // descending
+      });
+      return docs;
+    });
   }
 
   Future<void> addTx(String uid, Map<String, dynamic> data) {
-    final now = DateTime.now();
     return txRef(uid).doc().set({
       'type': data['type'] ?? 'expense',
       'amount': data['amount'] ?? 0,
@@ -68,11 +76,18 @@ class FirestoreDataSource {
   CollectionReference<Map<String, dynamic>> accRef(String uid) =>
       userDocRef(uid).collection('accounts');
 
-  Stream<List<Map<String, dynamic>>> watchAccounts(String uid) => accRef(uid)
-      .where('deleted', isEqualTo: false)
-      .orderBy('createdAt', descending: true)
-      .snapshots()
-      .map((s) => s.docs.map((d) => {...d.data(), 'id': d.id}).toList());
+  Stream<List<Map<String, dynamic>>> watchAccounts(String uid) =>
+      accRef(uid).where('deleted', isEqualTo: false).snapshots().map((s) {
+        final docs = s.docs.map((d) => {...d.data(), 'id': d.id}).toList();
+        // Sort manually to avoid index requirement
+        docs.sort((a, b) {
+          final aCreated = a['createdAt'] as Timestamp?;
+          final bCreated = b['createdAt'] as Timestamp?;
+          if (aCreated == null || bCreated == null) return 0;
+          return bCreated.compareTo(aCreated); // descending
+        });
+        return docs;
+      });
 
   Future<void> addAccount(String uid, Map<String, dynamic> data) =>
       accRef(uid).doc().set({
@@ -97,11 +112,18 @@ class FirestoreDataSource {
   CollectionReference<Map<String, dynamic>> budgetRef(String uid) =>
       userDocRef(uid).collection('budgets');
 
-  Stream<List<Map<String, dynamic>>> watchBudgets(String uid) => budgetRef(uid)
-      .where('deleted', isEqualTo: false)
-      .orderBy('createdAt', descending: true)
-      .snapshots()
-      .map((s) => s.docs.map((d) => {...d.data(), 'id': d.id}).toList());
+  Stream<List<Map<String, dynamic>>> watchBudgets(String uid) =>
+      budgetRef(uid).where('deleted', isEqualTo: false).snapshots().map((s) {
+        final docs = s.docs.map((d) => {...d.data(), 'id': d.id}).toList();
+        // Sort manually to avoid index requirement
+        docs.sort((a, b) {
+          final aCreated = a['createdAt'] as Timestamp?;
+          final bCreated = b['createdAt'] as Timestamp?;
+          if (aCreated == null || bCreated == null) return 0;
+          return bCreated.compareTo(aCreated); // descending
+        });
+        return docs;
+      });
 
   Future<void> addBudget(String uid, Map<String, dynamic> data) =>
       budgetRef(uid).doc().set({
