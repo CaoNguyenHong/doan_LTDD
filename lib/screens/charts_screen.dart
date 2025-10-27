@@ -90,7 +90,7 @@ class _ChartsScreenState extends State<ChartsScreen>
             slivers: [
               // Custom App Bar
               SliverAppBar(
-                expandedHeight: 120,
+                expandedHeight: 100,
                 floating: false,
                 pinned: true,
                 backgroundColor: const Color(0xFF667eea),
@@ -124,15 +124,6 @@ class _ChartsScreenState extends State<ChartsScreen>
                                   ),
                             ),
                             const SizedBox(height: 8),
-                            Text(
-                              'Hiểu rõ thói quen chi tiêu của bạn',
-                              style: Theme.of(context)
-                                  .textTheme
-                                  .titleMedium
-                                  ?.copyWith(
-                                    color: Colors.white70,
-                                  ),
-                            ),
                           ],
                         ),
                       ),

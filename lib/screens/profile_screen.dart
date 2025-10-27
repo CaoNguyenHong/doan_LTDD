@@ -4,6 +4,7 @@ import 'package:firebase_auth/firebase_auth.dart';
 import '../providers/settings_provider.dart';
 import '../auth/auth_repo.dart';
 import '../auth/auth_gate.dart';
+import 'pin_setup_screen.dart';
 
 class ProfileScreen extends StatefulWidget {
   const ProfileScreen({super.key});
@@ -70,15 +71,15 @@ class _ProfileScreenState extends State<ProfileScreen>
             child: SafeArea(
               child: Padding(
                 padding:
-                    const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+                    const EdgeInsets.symmetric(horizontal: 20, vertical: 20),
                 child: Row(
                   children: [
                     Container(
-                      width: 50,
-                      height: 50,
+                      width: 60,
+                      height: 60,
                       decoration: BoxDecoration(
                         color: Colors.white.withOpacity(0.2),
-                        borderRadius: BorderRadius.circular(25),
+                        borderRadius: BorderRadius.circular(30),
                         border: Border.all(
                           color: Colors.white.withOpacity(0.3),
                           width: 2,
@@ -90,7 +91,7 @@ class _ProfileScreenState extends State<ProfileScreen>
                               ? settings.userName[0].toUpperCase()
                               : 'U',
                           style: const TextStyle(
-                            fontSize: 20,
+                            fontSize: 24,
                             fontWeight: FontWeight.bold,
                             color: Colors.white,
                           ),
@@ -101,22 +102,31 @@ class _ProfileScreenState extends State<ProfileScreen>
                     Expanded(
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
-                        mainAxisAlignment: MainAxisAlignment.center,
+                        mainAxisAlignment: MainAxisAlignment.start,
+                        mainAxisSize: MainAxisSize.min,
                         children: [
-                          Text(
-                            settings.userName,
-                            style: const TextStyle(
-                              fontSize: 20,
-                              fontWeight: FontWeight.bold,
-                              color: Colors.white,
+                          Flexible(
+                            child: Text(
+                              settings.userName,
+                              style: const TextStyle(
+                                fontSize: 22,
+                                fontWeight: FontWeight.bold,
+                                color: Colors.white,
+                              ),
+                              overflow: TextOverflow.ellipsis,
+                              maxLines: 1,
                             ),
                           ),
                           const SizedBox(height: 2),
-                          Text(
-                            'Quản lý tài khoản và cài đặt',
-                            style: TextStyle(
-                              fontSize: 12,
-                              color: Colors.white.withOpacity(0.8),
+                          Flexible(
+                            child: Text(
+                              'Quản lý tài khoản và cài đặt',
+                              style: TextStyle(
+                                fontSize: 13,
+                                color: Colors.white.withOpacity(0.8),
+                              ),
+                              overflow: TextOverflow.ellipsis,
+                              maxLines: 1,
                             ),
                           ),
                         ],
@@ -140,58 +150,50 @@ class _ProfileScreenState extends State<ProfileScreen>
                   _buildUserInfoAndAccountSection(context, settings),
                   const SizedBox(height: 20),
 
-                  // App Information
+                  // Security Settings
                   _buildSection(
                     context,
-                    'Thông tin ứng dụng',
-                    Icons.info,
-                    const Color(0xFF667eea),
+                    'Bảo mật',
+                    Icons.security,
+                    const Color(0xFFE53E3E),
                     [
                       _buildListTile(
-                        'Phiên bản',
-                        '1.0.0',
-                        Icons.info_outline,
-                        () {},
+                        'Đổi mật khẩu',
+                        'Thay đổi mật khẩu tài khoản',
+                        Icons.lock_outline,
+                        () => _showChangePasswordDialog(context),
                       ),
-                      _buildListTile(
-                        'Về ứng dụng',
-                        'SpendSage - Quản lý tài chính cá nhân',
-                        Icons.description,
-                        () => _showAboutDialog(context),
+                      Consumer<SettingsProvider>(
+                        builder: (context, settings, _) {
+                          return _buildListTile(
+                            settings.isPinEnabled
+                                ? 'Đổi mã PIN'
+                                : 'Thiết lập mã PIN',
+                            settings.isPinEnabled
+                                ? 'Thay đổi mã PIN khóa màn hình'
+                                : 'Tạo mã PIN để khóa ứng dụng',
+                            Icons.pin,
+                            () => _showPinSetup(context, settings.isPinEnabled),
+                          );
+                        },
                       ),
-                      _buildListTile(
-                        'Hỗ trợ',
-                        'Liên hệ hỗ trợ',
-                        Icons.support,
-                        () => _showSupportDialog(context),
+                      Consumer<SettingsProvider>(
+                        builder: (context, settings, _) {
+                          if (settings.isPinEnabled) {
+                            return _buildListTile(
+                              'Tắt mã PIN',
+                              'Vô hiệu hóa khóa màn hình bằng PIN',
+                              Icons.pin_outlined,
+                              () => _showDisablePinDialog(context, settings),
+                              isDestructive: true,
+                            );
+                          }
+                          return const SizedBox.shrink();
+                        },
                       ),
                     ],
                   ),
                   const SizedBox(height: 20),
-
-                  // Data Management
-                  _buildSection(
-                    context,
-                    'Quản lý dữ liệu',
-                    Icons.storage,
-                    const Color(0xFF48BB78),
-                    [
-                      _buildListTile(
-                        'Xuất dữ liệu',
-                        'Tải xuống dữ liệu của bạn',
-                        Icons.download,
-                        () => _showExportDialog(context),
-                      ),
-                      _buildListTile(
-                        'Xóa tài khoản',
-                        'Xóa vĩnh viễn tài khoản và dữ liệu',
-                        Icons.delete_forever,
-                        () => _showDeleteAccountDialog(context),
-                        isDestructive: true,
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 40),
                 ],
               ),
             ),
@@ -813,5 +815,115 @@ class _ProfileScreenState extends State<ProfileScreen>
         );
       }
     }
+  }
+
+  // Security Settings Methods
+  void _showChangePasswordDialog(BuildContext context) {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Đổi mật khẩu'),
+        content: const Text(
+            'Tính năng đổi mật khẩu sẽ được phát triển trong phiên bản tiếp theo.'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('OK'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _showPinSetup(BuildContext context, bool isChangingPin) {
+    try {
+      final settingsProvider = context.read<SettingsProvider>();
+      Navigator.of(context).push(
+        MaterialPageRoute(
+          builder: (context) => PinSetupScreen(
+            settingsProvider: settingsProvider,
+            isChangingPin: isChangingPin,
+            onPinSaved: (pin) {
+              print(
+                  'ProfileScreen: PIN saved callback triggered with PIN: $pin');
+              ScaffoldMessenger.of(context).showSnackBar(
+                const SnackBar(
+                  content: Row(
+                    children: [
+                      Icon(Icons.check_circle, color: Colors.white),
+                      SizedBox(width: 8),
+                      Text('Mã PIN đã được thiết lập thành công!'),
+                    ],
+                  ),
+                  backgroundColor: Colors.green,
+                  behavior: SnackBarBehavior.floating,
+                ),
+              );
+            },
+          ),
+        ),
+      );
+    } catch (e) {
+      print('ProfileScreen: Error accessing SettingsProvider: $e');
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Lỗi: $e'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    }
+  }
+
+  void _showDisablePinDialog(BuildContext context, SettingsProvider settings) {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Tắt mã PIN'),
+        content: const Text(
+            'Bạn có chắc chắn muốn tắt mã PIN? Ứng dụng sẽ không còn yêu cầu nhập mã PIN khi khởi động.'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('Hủy'),
+          ),
+          TextButton(
+            onPressed: () async {
+              Navigator.pop(context);
+              try {
+                await settings.disablePinCode();
+                if (context.mounted) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(
+                      content: Row(
+                        children: [
+                          Icon(Icons.check_circle, color: Colors.white),
+                          SizedBox(width: 8),
+                          Text('Mã PIN đã được tắt thành công!'),
+                        ],
+                      ),
+                      backgroundColor: Colors.green,
+                      behavior: SnackBarBehavior.floating,
+                    ),
+                  );
+                }
+              } catch (e) {
+                if (context.mounted) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(
+                      content: Text('Lỗi khi tắt mã PIN: $e'),
+                      backgroundColor: Colors.red,
+                    ),
+                  );
+                }
+              }
+            },
+            style: TextButton.styleFrom(foregroundColor: Colors.red),
+            child: const Text('Tắt'),
+          ),
+        ],
+      ),
+    );
   }
 }

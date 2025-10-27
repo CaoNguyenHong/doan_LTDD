@@ -5,7 +5,11 @@ import 'package:provider/provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:spend_sage/auth/auth_gate.dart';
 import 'package:spend_sage/service/api_service.dart';
+import 'package:spend_sage/widgets/app_lifecycle_manager.dart';
 import 'firebase_options.dart';
+
+// Global Navigator Key để có thể navigate từ bất kỳ đâu
+final GlobalKey<NavigatorState> navigatorKey = GlobalKey<NavigatorState>();
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -15,7 +19,7 @@ void main() async {
     options: DefaultFirebaseOptions.currentPlatform,
   );
 
-  // TODO(CURSOR): App Check debug mode for emulator - disable in production
+  // Initialize Firebase App Check (Debug only)
   await FirebaseAppCheck.instance.activate(
     androidProvider: AndroidProvider.debug,
     appleProvider: AppleProvider.debug,
@@ -33,7 +37,9 @@ void main() async {
         Provider<SharedPreferences>.value(value: prefs),
         Provider<AIService>.value(value: aiService),
       ],
-      child: const MyApp(),
+      child: const AppLifecycleManager(
+        child: MyApp(),
+      ),
     ),
   );
 }
@@ -44,24 +50,24 @@ class MyApp extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
+      navigatorKey: navigatorKey, // Sử dụng global navigator key
       title: 'SpendSage',
+      debugShowCheckedModeBanner: false,
       theme: ThemeData(
         colorScheme: ColorScheme.fromSeed(
-          seedColor: Colors.teal, // Updated to match Firebase theme
+          seedColor: const Color(0xFF667eea),
           brightness: Brightness.light,
         ),
         useMaterial3: true,
       ),
       darkTheme: ThemeData(
         colorScheme: ColorScheme.fromSeed(
-          seedColor: Colors.teal, // Updated to match Firebase theme
+          seedColor: const Color(0xFF667eea),
           brightness: Brightness.dark,
         ),
         useMaterial3: true,
       ),
-      themeMode: ThemeMode.system,
-      debugShowCheckedModeBanner: false,
-      home: const AuthGate(), // Use AuthGate for authentication
+      home: const AuthGate(),
     );
   }
 }

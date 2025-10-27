@@ -92,16 +92,6 @@ class _FirebaseSmartAnalyticsState extends State<FirebaseSmartAnalytics>
                                 ),
                           ),
                           const SizedBox(height: 4),
-                          Text(
-                            'Hiểu rõ thói quen chi tiêu của bạn',
-                            style: Theme.of(context)
-                                .textTheme
-                                .titleMedium
-                                ?.copyWith(
-                                  color: Colors.grey.shade600,
-                                  fontWeight: FontWeight.w500,
-                                ),
-                          ),
                         ],
                       ),
                     ),

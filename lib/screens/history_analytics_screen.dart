@@ -38,12 +38,14 @@ class _HistoryAnalyticsScreenState extends State<HistoryAnalyticsScreen>
         title: const Text(
           'Phân tích chi tiêu',
           style: TextStyle(
+            fontSize: 22,
             fontWeight: FontWeight.bold,
             color: Colors.white,
           ),
         ),
         backgroundColor: Theme.of(context).colorScheme.primary,
         elevation: 0,
+        toolbarHeight: 80,
         actions: [
           PopupMenuButton<String>(
             icon: const Icon(Icons.more_vert, color: Colors.white),
