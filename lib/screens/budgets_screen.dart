@@ -165,7 +165,7 @@ class _BudgetsScreenState extends State<BudgetsScreen> {
       BuildContext context, BudgetProvider budgetProvider) {
     final totalLimit = budgetProvider.getTotalBudgetLimit();
     final totalSpent = budgetProvider.getTotalBudgetSpent();
-    final utilization = budgetProvider.getBudgetUtilizationPercentage();
+    final utilization = budgetProvider.getUtilizationPercentage();
 
     return Container(
       width: double.infinity,

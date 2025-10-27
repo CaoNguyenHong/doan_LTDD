@@ -283,7 +283,7 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
                     children: [
                       Expanded(
                         child: Text(
-                          'Giao dịch gần đây',
+                          'Giao dịch 2 tuần gần đây',
                           style: Theme.of(context)
                               .textTheme
                               .titleLarge
@@ -325,6 +325,14 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
 
                       final transactions = transactionProvider.transactions;
 
+                      // Filter transactions to show only last 2 weeks
+                      final twoWeeksAgo =
+                          DateTime.now().subtract(const Duration(days: 14));
+                      final recentTransactions = transactions
+                          .where((transaction) =>
+                              transaction.dateTime.isAfter(twoWeeksAgo))
+                          .toList();
+
                       // Debug log để kiểm tra dữ liệu
                       // print(
                       //     '🔍 HomeScreen: Received ${transactions.length} transactions');
@@ -333,7 +341,7 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
                       //       '  - ${transaction.type}: ${transaction.amount} (${transaction.dateTime})');
                       // }
 
-                      if (transactions.isEmpty) {
+                      if (recentTransactions.isEmpty) {
                         return Center(
                           child: Column(
                             children: [
@@ -345,7 +353,7 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
                               ),
                               const SizedBox(height: 20),
                               Text(
-                                'Chưa có giao dịch nào được ghi nhận.',
+                                'Chưa có giao dịch nào trong 2 tuần gần đây.',
                                 style: Theme.of(context)
                                     .textTheme
                                     .titleMedium
@@ -359,7 +367,7 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
                               ),
                               const SizedBox(height: 10),
                               Text(
-                                'Hãy thêm giao dịch đầu tiên của bạn!',
+                                'Hãy thêm giao dịch mới hoặc kiểm tra lịch sử đầy đủ!',
                                 style: Theme.of(context)
                                     .textTheme
                                     .bodyMedium
@@ -396,7 +404,7 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
 
                       // Group transactions by date
                       final groupedTransactions =
-                          _groupTransactionsByDate(transactions);
+                          _groupTransactionsByDate(recentTransactions);
                       final sortedDates = groupedTransactions.keys.toList()
                         ..sort((a, b) => b.compareTo(a));
 

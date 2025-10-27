@@ -191,10 +191,33 @@ class BudgetProvider extends ChangeNotifier {
     return _items.fold(0.0, (sum, budget) => sum + budget.spent);
   }
 
-  double getBudgetUtilizationPercentage() {
-    final totalLimit = getTotalBudgetLimit();
-    final totalSpent = getTotalBudgetSpent();
-    if (totalLimit == 0) return 0.0;
-    return (totalSpent / totalLimit) * 100;
+  // Method to get "toàn bộ" budget by period
+  double getTotalBudgetLimitByPeriod(String period) {
+    return _items
+        .where((budget) => budget.period == period && budget.categoryId == null)
+        .fold(0.0, (sum, budget) => sum + budget.limit);
+  }
+
+  double getTotalBudgetSpentByPeriod(String period) {
+    return _items
+        .where((budget) => budget.period == period && budget.categoryId == null)
+        .fold(0.0, (sum, budget) => sum + budget.spent);
+  }
+
+  // Method to get "toàn bộ" budget by period and category
+  double getTotalBudgetLimitByPeriodAndCategory(
+      String period, String categoryId) {
+    return _items
+        .where((budget) =>
+            budget.period == period && budget.categoryId == categoryId)
+        .fold(0.0, (sum, budget) => sum + budget.limit);
+  }
+
+  double getTotalBudgetSpentByPeriodAndCategory(
+      String period, String categoryId) {
+    return _items
+        .where((budget) =>
+            budget.period == period && budget.categoryId == categoryId)
+        .fold(0.0, (sum, budget) => sum + budget.spent);
   }
 }

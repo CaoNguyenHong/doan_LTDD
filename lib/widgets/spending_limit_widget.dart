@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../providers/transaction_provider.dart';
 import '../providers/settings_provider.dart';
+import '../providers/budget_provider.dart';
 import '../models/transaction.dart' as models;
 import '../utils/currency_formatter.dart';
 
@@ -25,11 +26,25 @@ class _SpendingLimitWidgetState extends State<SpendingLimitWidget> {
 
   @override
   Widget build(BuildContext context) {
-    return Consumer2<TransactionProvider, SettingsProvider>(
-      builder: (context, transactionProvider, settingsProvider, child) {
+    return Consumer3<TransactionProvider, SettingsProvider, BudgetProvider>(
+      builder: (context, transactionProvider, settingsProvider, budgetProvider,
+          child) {
         final transactions = transactionProvider.transactions;
+
+        // Get budget limit from BudgetProvider for "toàn bộ" category
+        final periodName = _mapTimePeriodToPeriodString(_selectedPeriod);
         final spendingLimit =
-            settingsProvider.getSpendingLimitCompat(_selectedPeriod.name);
+            budgetProvider.getTotalBudgetLimitByPeriod(periodName);
+
+        // Debug log
+        print('🔍 SpendingLimitWidget: periodName = $periodName');
+        print('🔍 SpendingLimitWidget: spendingLimit = $spendingLimit');
+        print(
+            '🔍 SpendingLimitWidget: budgetProvider.items.length = ${budgetProvider.items.length}');
+        for (final budget in budgetProvider.items) {
+          print(
+              '  - Budget: period=${budget.period}, categoryId=${budget.categoryId}, limit=${budget.limit}');
+        }
 
         // Calculate totals for selected period
         final totals =
@@ -50,18 +65,22 @@ class _SpendingLimitWidgetState extends State<SpendingLimitWidget> {
           padding: const EdgeInsets.all(20),
           decoration: BoxDecoration(
             gradient: LinearGradient(
-              colors: isOverLimit
-                  ? [Colors.red.shade400, Colors.red.shade600]
-                  : [Colors.green.shade400, Colors.green.shade600],
+              colors: spendingLimit == 0
+                  ? [Colors.grey.shade400, Colors.grey.shade600]
+                  : isOverLimit
+                      ? [Colors.red.shade400, Colors.red.shade600]
+                      : [Colors.green.shade400, Colors.green.shade600],
               begin: Alignment.topLeft,
               end: Alignment.bottomRight,
             ),
             borderRadius: BorderRadius.circular(20),
             boxShadow: [
               BoxShadow(
-                color: (isOverLimit
-                        ? const Color.fromARGB(255, 239, 42, 28)
-                        : const Color.fromARGB(255, 2, 130, 6))
+                color: (spendingLimit == 0
+                        ? Colors.grey.shade600
+                        : isOverLimit
+                            ? const Color.fromARGB(255, 239, 42, 28)
+                            : const Color.fromARGB(255, 2, 130, 6))
                     .withOpacity(0.3),
                 blurRadius: 15,
                 offset: const Offset(0, 8),
@@ -140,21 +159,31 @@ class _SpendingLimitWidgetState extends State<SpendingLimitWidget> {
                         Row(
                           children: [
                             Icon(
-                              isOverLimit ? Icons.warning : Icons.check_circle,
-                              color: isOverLimit
-                                  ? const Color.fromARGB(255, 251, 2, 2)
-                                  : const Color.fromARGB(255, 0, 255, 13),
+                              spendingLimit == 0
+                                  ? Icons.info_outline
+                                  : isOverLimit
+                                      ? Icons.warning
+                                      : Icons.check_circle,
+                              color: spendingLimit == 0
+                                  ? Colors.white.withOpacity(0.7)
+                                  : isOverLimit
+                                      ? const Color.fromARGB(255, 251, 2, 2)
+                                      : const Color.fromARGB(255, 0, 255, 13),
                               size: 16,
                             ),
                             const SizedBox(width: 4),
                             Text(
                               isOverLimit
                                   ? 'Vượt quá ${_formatCurrency(totalSpending - spendingLimit)}'
-                                  : 'Còn lại ${_formatCurrency(spendingLimit - totalSpending)}',
+                                  : spendingLimit > 0
+                                      ? 'Còn lại ${_formatCurrency(spendingLimit - totalSpending)}'
+                                      : 'Chưa có ngân sách',
                               style: TextStyle(
                                 color: isOverLimit
                                     ? const Color.fromARGB(255, 162, 2, 2)
-                                    : const Color.fromARGB(255, 0, 253, 13),
+                                    : spendingLimit > 0
+                                        ? const Color.fromARGB(255, 0, 253, 13)
+                                        : Colors.white.withOpacity(0.7),
                                 fontSize: 14,
                                 fontWeight: FontWeight.w500,
                               ),
@@ -200,9 +229,11 @@ class _SpendingLimitWidgetState extends State<SpendingLimitWidget> {
                   child: Container(
                     decoration: BoxDecoration(
                       borderRadius: BorderRadius.circular(4),
-                      color: isOverLimit
-                          ? Colors.red.shade300
-                          : Colors.green.shade300,
+                      color: spendingLimit == 0
+                          ? Colors.grey.shade300
+                          : isOverLimit
+                              ? Colors.red.shade300
+                              : Colors.green.shade300,
                     ),
                   ),
                 ),
@@ -400,6 +431,19 @@ class _SpendingLimitWidgetState extends State<SpendingLimitWidget> {
       return transaction.dateTime.isAfter(startDate) &&
           transaction.dateTime.isBefore(endDate);
     }).toList();
+  }
+
+  String _mapTimePeriodToPeriodString(TimePeriod period) {
+    switch (period) {
+      case TimePeriod.day:
+        return 'daily';
+      case TimePeriod.week:
+        return 'weekly';
+      case TimePeriod.month:
+        return 'monthly';
+      case TimePeriod.year:
+        return 'yearly';
+    }
   }
 
   String _formatCurrency(double amount) {
