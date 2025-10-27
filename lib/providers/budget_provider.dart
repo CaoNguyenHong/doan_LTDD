@@ -1,6 +1,8 @@
 import 'package:flutter/foundation.dart';
 import '../models/budget.dart';
+import '../models/transaction.dart';
 import '../data/firestore_data_source.dart';
+import '../services/budget_calculator.dart';
 
 class BudgetProvider extends ChangeNotifier {
   final FirestoreDataSource _ds;
@@ -11,6 +13,7 @@ class BudgetProvider extends ChangeNotifier {
   }
 
   List<Budget> _items = [];
+  List<Transaction> _transactions = [];
   bool _loading = true;
   String? _error;
 
@@ -21,8 +24,11 @@ class BudgetProvider extends ChangeNotifier {
   void _watch() {
     _loading = true;
     notifyListeners();
+
+    // Watch budgets
     _ds.watchBudgets(_uid).listen((rows) {
       _items = rows.map((data) => Budget.fromMap(data['id'], data)).toList();
+      _updateBudgetsWithSpent();
       _loading = false;
       _error = null;
       notifyListeners();
@@ -31,6 +37,24 @@ class BudgetProvider extends ChangeNotifier {
       _loading = false;
       notifyListeners();
     });
+
+    // Watch transactions
+    _ds.watchTx(_uid).listen((rows) {
+      // Lọc chỉ expense transactions
+      final expenseTransactions =
+          rows.where((data) => data['type'] == 'expense').toList();
+      _transactions = expenseTransactions
+          .map((data) => Transaction.fromMap(data['id'], data))
+          .toList();
+      _updateBudgetsWithSpent();
+      notifyListeners();
+    });
+  }
+
+  void _updateBudgetsWithSpent() {
+    if (_items.isNotEmpty && _transactions.isNotEmpty) {
+      _items = BudgetCalculator.updateBudgetsWithSpent(_items, _transactions);
+    }
   }
 
   Future<void> add({
@@ -60,6 +84,21 @@ class BudgetProvider extends ChangeNotifier {
 
   Future<void> updateSpent(String id, double spent) async {
     await _ds.updateBudget(_uid, id, {'spent': spent});
+  }
+
+  /// Cập nhật spent cho tất cả budgets dựa trên transactions hiện tại
+  Future<void> refreshBudgetsSpent() async {
+    if (_items.isEmpty || _transactions.isEmpty) return;
+
+    for (final budget in _items) {
+      final spent =
+          BudgetCalculator.calculateSpentForBudget(budget, _transactions);
+
+      // Chỉ cập nhật nếu spent khác với giá trị hiện tại
+      if (budget.spent != spent) {
+        await updateSpent(budget.id, spent);
+      }
+    }
   }
 
   // Legacy methods for backward compatibility

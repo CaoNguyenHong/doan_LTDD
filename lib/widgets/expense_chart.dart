@@ -200,10 +200,19 @@ class _ExpenseChartState extends State<ExpenseChart>
                                   topLevel
                                 ];
 
+                                print('🔍 DEBUG Chart Y-axis:');
+                                print('  - maxDataValue: $maxDataValue');
+                                print('  - valueWithBuffer: $valueWithBuffer');
+                                print('  - topLevel: $topLevel');
+                                print('  - step: $step');
+                                print('  - levels: $levels');
+                                print('  - current value: $value');
+
                                 // Kiểm tra xem value có gần với một trong các mức không
                                 for (final level in levels) {
-                                  if ((value - level).abs() < 1000.0) {
-                                    // Tăng tolerance lên 1000 để chắc chắn
+                                  if ((value - level).abs() < 50000.0) {
+                                    // Tăng tolerance lên 50,000
+                                    print('  - Match found: $value ≈ $level');
                                     return Text(
                                       CurrencyFormatter.format(level),
                                       style: TextStyle(
@@ -216,7 +225,7 @@ class _ExpenseChartState extends State<ExpenseChart>
                                 }
                                 return const Text('');
                               },
-                              reservedSize: 40,
+                              reservedSize: 50,
                             ),
                           ),
                           rightTitles: const AxisTitles(
@@ -243,7 +252,7 @@ class _ExpenseChartState extends State<ExpenseChart>
                         gridData: FlGridData(
                           show: true,
                           drawVerticalLine: false,
-                          horizontalInterval: _calculateMaxY(groupedData) / 5,
+                          horizontalInterval: _calculateMaxY(groupedData) / 4,
                           getDrawingHorizontalLine: (value) {
                             return FlLine(
                               color: Colors.grey.shade100,

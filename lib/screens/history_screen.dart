@@ -33,7 +33,11 @@ class _HistoryScreenState extends State<HistoryScreen> {
     'week': 'Tuần',
     'month': 'Tháng',
     'year': 'Năm',
+    'custom': 'Tùy chỉnh',
   };
+
+  DateTime? _customStartDate;
+  DateTime? _customEndDate;
 
   @override
   void dispose() {
@@ -95,6 +99,9 @@ class _HistoryScreenState extends State<HistoryScreen> {
 
               // Filter Chips
               _buildFilterChips(),
+
+              // Period Filter Chips
+              _buildPeriodFilterChips(),
 
               // Transactions List
               Expanded(
@@ -238,6 +245,144 @@ class _HistoryScreenState extends State<HistoryScreen> {
             ),
           );
         },
+      ),
+    );
+  }
+
+  Widget _buildPeriodFilterChips() {
+    return Container(
+      height: 50,
+      padding: const EdgeInsets.symmetric(horizontal: 16),
+      child: Row(
+        children: [
+          Text(
+            _selectedPeriod == 'custom' &&
+                    _customStartDate != null &&
+                    _customEndDate != null
+                ? 'Thời gian: ${_customStartDate!.day}/${_customStartDate!.month}/${_customStartDate!.year} - ${_customEndDate!.day}/${_customEndDate!.month}/${_customEndDate!.year}'
+                : 'Thời gian: ',
+            style: TextStyle(
+              fontSize: 14,
+              fontWeight: FontWeight.w500,
+              color: Colors.grey.shade600,
+            ),
+          ),
+          Expanded(
+            child: ListView.builder(
+              scrollDirection: Axis.horizontal,
+              itemCount: _periodOptions.length,
+              itemBuilder: (context, index) {
+                final key = _periodOptions.keys.elementAt(index);
+                final value = _periodOptions[key]!;
+                final isSelected = _selectedPeriod == key;
+
+                return Padding(
+                  padding: const EdgeInsets.only(right: 8),
+                  child: FilterChip(
+                    label: Text(value),
+                    selected: isSelected,
+                    onSelected: (selected) {
+                      if (key == 'custom') {
+                        _showCustomDateRangeDialog();
+                      } else {
+                        setState(() {
+                          _selectedPeriod = key;
+                          _customStartDate = null;
+                          _customEndDate = null;
+                        });
+                      }
+                    },
+                    backgroundColor: Colors.white,
+                    selectedColor: Theme.of(context)
+                        .colorScheme
+                        .secondary
+                        .withOpacity(0.2),
+                    checkmarkColor: Theme.of(context).colorScheme.secondary,
+                    labelStyle: TextStyle(
+                      color: isSelected
+                          ? Theme.of(context).colorScheme.secondary
+                          : Colors.grey.shade700,
+                      fontWeight:
+                          isSelected ? FontWeight.bold : FontWeight.normal,
+                    ),
+                  ),
+                );
+              },
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _showCustomDateRangeDialog() {
+    DateTime startDate =
+        _customStartDate ?? DateTime.now().subtract(const Duration(days: 30));
+    DateTime endDate = _customEndDate ?? DateTime.now();
+
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Chọn khoảng thời gian'),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            ListTile(
+              title: const Text('Từ ngày'),
+              subtitle:
+                  Text('${startDate.day}/${startDate.month}/${startDate.year}'),
+              trailing: const Icon(Icons.calendar_today),
+              onTap: () async {
+                final date = await showDatePicker(
+                  context: context,
+                  initialDate: startDate,
+                  firstDate: DateTime(2020),
+                  lastDate: DateTime.now(),
+                );
+                if (date != null) {
+                  setState(() {
+                    startDate = date;
+                  });
+                }
+              },
+            ),
+            ListTile(
+              title: const Text('Đến ngày'),
+              subtitle: Text('${endDate.day}/${endDate.month}/${endDate.year}'),
+              trailing: const Icon(Icons.calendar_today),
+              onTap: () async {
+                final date = await showDatePicker(
+                  context: context,
+                  initialDate: endDate,
+                  firstDate: startDate,
+                  lastDate: DateTime.now(),
+                );
+                if (date != null) {
+                  setState(() {
+                    endDate = date;
+                  });
+                }
+              },
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('Hủy'),
+          ),
+          TextButton(
+            onPressed: () {
+              setState(() {
+                _selectedPeriod = 'custom';
+                _customStartDate = startDate;
+                _customEndDate = endDate;
+              });
+              Navigator.pop(context);
+            },
+            child: const Text('Áp dụng'),
+          ),
+        ],
       ),
     );
   }
@@ -719,6 +864,8 @@ class _HistoryScreenState extends State<HistoryScreen> {
                 _selectedPeriod = 'month';
                 _searchQuery = '';
                 _searchController.clear();
+                _customStartDate = null;
+                _customEndDate = null;
               });
               Navigator.pop(context);
             },
@@ -759,6 +906,15 @@ class _HistoryScreenState extends State<HistoryScreen> {
         break;
       case 'year':
         startDate = DateTime(now.year, 1, 1);
+        break;
+      case 'custom':
+        if (_customStartDate != null && _customEndDate != null) {
+          startDate = _customStartDate!;
+          endDate = _customEndDate!
+              .add(const Duration(days: 1)); // Include the end date
+        } else {
+          startDate = DateTime(now.year, now.month, 1);
+        }
         break;
       default:
         startDate = DateTime(now.year, now.month, 1);

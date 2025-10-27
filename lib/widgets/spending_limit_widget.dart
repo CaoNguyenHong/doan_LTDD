@@ -50,9 +50,21 @@ class _SpendingLimitWidgetState extends State<SpendingLimitWidget> {
         final totals =
             _calculateTotals(transactions, _selectedPeriod, _selectedDate);
         final totalSpending = totals['total'] ?? 0.0;
-        final isOverLimit = totalSpending > spendingLimit;
+
+        // Debug log for totals
+        print('🔍 SpendingLimitWidget: totals = $totals');
+        print('🔍 SpendingLimitWidget: totalSpending = $totalSpending');
+
+        // Only show over-limit information if there's actually a total budget for this period
+        final hasTotalBudget = spendingLimit > 0;
+        final isOverLimit = hasTotalBudget && totalSpending > spendingLimit;
         final progressPercentage =
-            spendingLimit > 0 ? (totalSpending / spendingLimit) : 0.0;
+            hasTotalBudget ? (totalSpending / spendingLimit) : 0.0;
+
+        print('🔍 SpendingLimitWidget: hasTotalBudget = $hasTotalBudget');
+        print('🔍 SpendingLimitWidget: isOverLimit = $isOverLimit');
+        print(
+            '🔍 SpendingLimitWidget: progressPercentage = $progressPercentage');
 
         // Extract individual amounts
         final incomeAmount = totals['income'] ?? 0.0;
@@ -65,7 +77,7 @@ class _SpendingLimitWidgetState extends State<SpendingLimitWidget> {
           padding: const EdgeInsets.all(20),
           decoration: BoxDecoration(
             gradient: LinearGradient(
-              colors: spendingLimit == 0
+              colors: !hasTotalBudget
                   ? [Colors.grey.shade400, Colors.grey.shade600]
                   : isOverLimit
                       ? [Colors.red.shade400, Colors.red.shade600]
@@ -76,7 +88,7 @@ class _SpendingLimitWidgetState extends State<SpendingLimitWidget> {
             borderRadius: BorderRadius.circular(20),
             boxShadow: [
               BoxShadow(
-                color: (spendingLimit == 0
+                color: (!hasTotalBudget
                         ? Colors.grey.shade600
                         : isOverLimit
                             ? const Color.fromARGB(255, 239, 42, 28)
@@ -159,12 +171,12 @@ class _SpendingLimitWidgetState extends State<SpendingLimitWidget> {
                         Row(
                           children: [
                             Icon(
-                              spendingLimit == 0
+                              !hasTotalBudget
                                   ? Icons.info_outline
                                   : isOverLimit
                                       ? Icons.warning
                                       : Icons.check_circle,
-                              color: spendingLimit == 0
+                              color: !hasTotalBudget
                                   ? Colors.white.withOpacity(0.7)
                                   : isOverLimit
                                       ? const Color.fromARGB(255, 251, 2, 2)
@@ -173,17 +185,17 @@ class _SpendingLimitWidgetState extends State<SpendingLimitWidget> {
                             ),
                             const SizedBox(width: 4),
                             Text(
-                              isOverLimit
-                                  ? 'Vượt quá ${_formatCurrency(totalSpending - spendingLimit)}'
-                                  : spendingLimit > 0
-                                      ? 'Còn lại ${_formatCurrency(spendingLimit - totalSpending)}'
-                                      : 'Chưa có ngân sách',
+                              !hasTotalBudget
+                                  ? 'Chưa có ngân sách'
+                                  : isOverLimit
+                                      ? 'Vượt quá ${_formatCurrency(totalSpending - spendingLimit)}'
+                                      : 'Còn lại ${_formatCurrency(spendingLimit - totalSpending)}',
                               style: TextStyle(
-                                color: isOverLimit
-                                    ? const Color.fromARGB(255, 162, 2, 2)
-                                    : spendingLimit > 0
-                                        ? const Color.fromARGB(255, 0, 253, 13)
-                                        : Colors.white.withOpacity(0.7),
+                                color: !hasTotalBudget
+                                    ? Colors.white.withOpacity(0.7)
+                                    : isOverLimit
+                                        ? const Color.fromARGB(255, 162, 2, 2)
+                                        : const Color.fromARGB(255, 0, 253, 13),
                                 fontSize: 14,
                                 fontWeight: FontWeight.w500,
                               ),
@@ -203,7 +215,9 @@ class _SpendingLimitWidgetState extends State<SpendingLimitWidget> {
                     ),
                     child: Center(
                       child: Text(
-                        '${(progressPercentage * 100).toInt()}%',
+                        !hasTotalBudget
+                            ? 'N/A'
+                            : '${(progressPercentage * 100).toInt()}%',
                         style: TextStyle(
                           color: Colors.white,
                           fontSize: 12,
@@ -229,7 +243,7 @@ class _SpendingLimitWidgetState extends State<SpendingLimitWidget> {
                   child: Container(
                     decoration: BoxDecoration(
                       borderRadius: BorderRadius.circular(4),
-                      color: spendingLimit == 0
+                      color: !hasTotalBudget
                           ? Colors.grey.shade300
                           : isOverLimit
                               ? Colors.red.shade300
@@ -393,7 +407,7 @@ class _SpendingLimitWidgetState extends State<SpendingLimitWidget> {
       'expense': expense,
       'transfer': transfer,
       'refund': refund,
-      'total': income + expense + transfer + refund,
+      'total': expense, // Chỉ tính expense cho ngân sách
     };
   }
 
