@@ -82,6 +82,7 @@ class _TransactionAddSheetState extends State<TransactionAddSheet>
     _tabController.addListener(() {
       setState(() {
         _selectedType = _getTypeFromTab(_tabController.index);
+        print('🔍 DEBUG: Tab changed to index ${_tabController.index}, _selectedType: $_selectedType');
         // Reset category when type changes
         final availableCategories =
             _categoriesByType[_selectedType] ?? ['other'];
@@ -287,7 +288,17 @@ class _TransactionAddSheetState extends State<TransactionAddSheet>
                     children: [
                       Text(account.typeIcon),
                       const SizedBox(width: 8),
-                      Text(account.name),
+                      Expanded(
+                        child: Text(account.name),
+                      ),
+                      Text(
+                        '${account.balance.toStringAsFixed(0)} ${account.currency}',
+                        style: TextStyle(
+                          color:
+                              account.balance < 0 ? Colors.red : Colors.green,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
                     ],
                   ),
                 );
@@ -299,6 +310,55 @@ class _TransactionAddSheetState extends State<TransactionAddSheet>
               },
             ),
             const SizedBox(height: 16),
+
+            // Show current balance for selected account
+            if (_selectedAccountId != null) ...[
+              Consumer<AccountProvider>(
+                builder: (context, accountProvider, child) {
+                  final selectedAccount = accountProvider.items.firstWhere(
+                    (account) => account.id == _selectedAccountId,
+                    orElse: () => throw Exception('Account not found'),
+                  );
+                  return Container(
+                    padding: const EdgeInsets.all(12),
+                    decoration: BoxDecoration(
+                      color: selectedAccount.balance < 0
+                          ? Colors.red.withOpacity(0.1)
+                          : Colors.green.withOpacity(0.1),
+                      borderRadius: BorderRadius.circular(8),
+                      border: Border.all(
+                        color: selectedAccount.balance < 0
+                            ? Colors.red.withOpacity(0.3)
+                            : Colors.green.withOpacity(0.3),
+                      ),
+                    ),
+                    child: Row(
+                      children: [
+                        Icon(
+                          selectedAccount.balance < 0
+                              ? Icons.warning
+                              : Icons.account_balance_wallet,
+                          color: selectedAccount.balance < 0
+                              ? Colors.red
+                              : Colors.green,
+                        ),
+                        const SizedBox(width: 8),
+                        Text(
+                          'Số dư hiện tại: ${selectedAccount.balance.toStringAsFixed(0)} ${selectedAccount.currency}',
+                          style: TextStyle(
+                            fontWeight: FontWeight.bold,
+                            color: selectedAccount.balance < 0
+                                ? Colors.red
+                                : Colors.green,
+                          ),
+                        ),
+                      ],
+                    ),
+                  );
+                },
+              ),
+              const SizedBox(height: 16),
+            ],
 
             // To account (for transfers)
             if (showToAccount) ...[
@@ -323,7 +383,17 @@ class _TransactionAddSheetState extends State<TransactionAddSheet>
                       children: [
                         Text(account.typeIcon),
                         const SizedBox(width: 8),
-                        Text(account.name),
+                        Expanded(
+                          child: Text(account.name),
+                        ),
+                        Text(
+                          '${account.balance.toStringAsFixed(0)} ${account.currency}',
+                          style: TextStyle(
+                            color:
+                                account.balance < 0 ? Colors.red : Colors.green,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
                       ],
                     ),
                   );
@@ -510,52 +580,172 @@ class _TransactionAddSheetState extends State<TransactionAddSheet>
     final amount = double.parse(_amountController.text);
     final description = _descriptionController.text;
 
-    // Get currency from settings
-    final settingsProvider =
-        Provider.of<SettingsProvider>(context, listen: false);
-    final currency = settingsProvider.currency;
-
-    final transaction = Transaction(
-      id: const Uuid().v4(),
-      type: _selectedType,
-      accountId: _selectedAccountId!,
-      toAccountId: _selectedToAccountId,
-      categoryId: _selectedCategoryId,
-      amount: amount,
-      currency: currency,
-      description: description,
-      tags: _tags,
-      dateTime: DateTime(
-        _selectedDate.year,
-        _selectedDate.month,
-        _selectedDate.day,
-        DateTime.now().hour,
-        DateTime.now().minute,
-        DateTime.now().second,
-      ),
-      createdAt: DateTime.now(),
-      updatedAt: DateTime.now(),
-      deleted: false,
-    );
-
-    // print(
-    //     '🔍 Adding transaction: ${transaction.type} - ${transaction.amount} ${transaction.currency}');
-    // print('🔍 Transaction dateTime: ${transaction.dateTime}');
-    // print(
-    //     '🔍 Transaction dateTime formatted: ${transaction.dateTime.day}/${transaction.dateTime.month}/${transaction.dateTime.year}');
-
+    // Get providers
+    final accountProvider =
+        Provider.of<AccountProvider>(context, listen: false);
     final transactionProvider =
         Provider.of<TransactionProvider>(context, listen: false);
-    await transactionProvider.addTransaction(transaction);
+    final settingsProvider =
+        Provider.of<SettingsProvider>(context, listen: false);
 
-    if (mounted) {
-      Navigator.pop(context);
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('✅ Đã thêm giao dịch thành công!'),
-          backgroundColor: Colors.green,
-        ),
+    // Get currency from settings
+    final currency = settingsProvider.currency;
+
+    // Get current transaction type from tab index
+    final currentType = _getTypeFromTab(_tabController.index);
+    
+    print('🔍 DEBUG: Current tab index: ${_tabController.index}, Type: $currentType');
+    print('🔍 DEBUG: Selected account ID: $_selectedAccountId');
+
+    // Validate account balance for expense and transfer transactions
+    if (currentType == 'expense' || currentType == 'transfer') {
+      final fromAccount = accountProvider.items.firstWhere(
+        (account) => account.id == _selectedAccountId,
+        orElse: () => throw Exception('Account not found'),
       );
+
+      print('🔍 DEBUG: Account: ${fromAccount.name}, Balance: ${fromAccount.balance}, Amount: $amount');
+
+      if (fromAccount.balance < amount) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text(
+                  '❌ Số dư trong ví "${fromAccount.name}" không đủ!\nSố dư hiện tại: ${fromAccount.balance.toStringAsFixed(0)} ${currency}\nCần: ${amount.toStringAsFixed(0)} ${currency}'),
+              backgroundColor: Colors.red,
+              duration: const Duration(seconds: 4),
+            ),
+          );
+        }
+        return;
+      }
+    }
+
+    // Validate transfer has both accounts
+    if (currentType == 'transfer' && _selectedToAccountId == null) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content:
+                Text('❌ Vui lòng chọn ví nhận cho giao dịch chuyển khoản!'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+      return;
+    }
+
+    // Validate transfer accounts are different
+    if (currentType == 'transfer' &&
+        _selectedAccountId == _selectedToAccountId) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('❌ Ví gửi và ví nhận không thể giống nhau!'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+      return;
+    }
+
+    try {
+      // Create transaction
+      final transaction = Transaction(
+        id: const Uuid().v4(),
+        type: currentType,
+        accountId: _selectedAccountId!,
+        toAccountId: _selectedToAccountId,
+        categoryId: _selectedCategoryId,
+        amount: amount,
+        currency: currency,
+        description: description,
+        tags: _tags,
+        dateTime: DateTime(
+          _selectedDate.year,
+          _selectedDate.month,
+          _selectedDate.day,
+          DateTime.now().hour,
+          DateTime.now().minute,
+          DateTime.now().second,
+        ),
+        createdAt: DateTime.now(),
+        updatedAt: DateTime.now(),
+        deleted: false,
+      );
+
+      // Add transaction to database
+      await transactionProvider.addTransaction(transaction);
+
+      // Update account balances based on transaction type
+      await _updateAccountBalances(accountProvider, transaction);
+
+      if (mounted) {
+        Navigator.pop(context);
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('✅ Đã thêm giao dịch thành công!'),
+            backgroundColor: Colors.green,
+          ),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('❌ Lỗi khi thêm giao dịch: $e'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    }
+  }
+
+  Future<void> _updateAccountBalances(
+      AccountProvider accountProvider, Transaction transaction) async {
+    switch (transaction.type) {
+      case 'expense':
+        // Subtract amount from account balance
+        final fromAccount = accountProvider.items.firstWhere(
+          (account) => account.id == transaction.accountId,
+        );
+        await accountProvider.updateBalance(
+          transaction.accountId,
+          fromAccount.balance - transaction.amount,
+        );
+        break;
+
+      case 'income':
+      case 'refund':
+        // Add amount to account balance
+        final toAccount = accountProvider.items.firstWhere(
+          (account) => account.id == transaction.accountId,
+        );
+        await accountProvider.updateBalance(
+          transaction.accountId,
+          toAccount.balance + transaction.amount,
+        );
+        break;
+
+      case 'transfer':
+        // Subtract from source account
+        final fromAccount = accountProvider.items.firstWhere(
+          (account) => account.id == transaction.accountId,
+        );
+        await accountProvider.updateBalance(
+          transaction.accountId,
+          fromAccount.balance - transaction.amount,
+        );
+
+        // Add to destination account
+        final toAccount = accountProvider.items.firstWhere(
+          (account) => account.id == transaction.toAccountId!,
+        );
+        await accountProvider.updateBalance(
+          transaction.toAccountId!,
+          toAccount.balance + transaction.amount,
+        );
+        break;
     }
   }
 }
