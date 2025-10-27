@@ -115,13 +115,11 @@ class _ChartsScreenState extends State<ChartsScreen>
                           children: [
                             Text(
                               'Phân tích chi tiêu',
-                              style: Theme.of(context)
-                                  .textTheme
-                                  .headlineMedium
-                                  ?.copyWith(
-                                    color: Colors.white,
-                                    fontWeight: FontWeight.bold,
-                                  ),
+                              style: const TextStyle(
+                                fontSize: 20,
+                                color: Colors.white,
+                                fontWeight: FontWeight.bold,
+                              ),
                             ),
                             const SizedBox(height: 8),
                           ],

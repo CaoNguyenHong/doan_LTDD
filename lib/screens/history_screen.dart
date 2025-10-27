@@ -49,7 +49,7 @@ class _HistoryScreenState extends State<HistoryScreen> {
         title: const Text(
           'Lịch sử giao dịch',
           style: TextStyle(
-            fontSize: 22,
+            fontSize: 20,
             fontWeight: FontWeight.bold,
             color: Colors.white,
           ),

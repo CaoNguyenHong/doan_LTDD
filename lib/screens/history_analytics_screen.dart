@@ -38,7 +38,7 @@ class _HistoryAnalyticsScreenState extends State<HistoryAnalyticsScreen>
         title: const Text(
           'Phân tích chi tiêu',
           style: TextStyle(
-            fontSize: 22,
+            fontSize: 20,
             fontWeight: FontWeight.bold,
             color: Colors.white,
           ),

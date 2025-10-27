@@ -22,7 +22,7 @@ class _BudgetsScreenState extends State<BudgetsScreen> {
         title: const Text(
           'Ngân sách',
           style: TextStyle(
-            fontSize: 22,
+            fontSize: 20,
             fontWeight: FontWeight.bold,
             color: Colors.white,
           ),

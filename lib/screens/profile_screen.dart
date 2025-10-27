@@ -57,84 +57,32 @@ class _ProfileScreenState extends State<ProfileScreen>
           backgroundColor: const Color(0xFF667eea),
           foregroundColor: Colors.white,
           elevation: 0,
-          flexibleSpace: Container(
-            decoration: const BoxDecoration(
+          toolbarHeight: 120,
+          flexibleSpace: const DecoratedBox(
+            decoration: BoxDecoration(
               gradient: LinearGradient(
                 begin: Alignment.topLeft,
                 end: Alignment.bottomRight,
-                colors: [
-                  Color(0xFF667eea),
-                  Color(0xFF764ba2),
-                ],
+                colors: [Color(0xFF667eea), Color(0xFF764ba2)],
               ),
             ),
-            child: SafeArea(
-              child: Padding(
-                padding:
-                    const EdgeInsets.symmetric(horizontal: 20, vertical: 20),
-                child: Row(
-                  children: [
-                    Container(
-                      width: 60,
-                      height: 60,
-                      decoration: BoxDecoration(
-                        color: Colors.white.withOpacity(0.2),
-                        borderRadius: BorderRadius.circular(30),
-                        border: Border.all(
-                          color: Colors.white.withOpacity(0.3),
-                          width: 2,
-                        ),
-                      ),
-                      child: Center(
-                        child: Text(
-                          settings.userName.isNotEmpty
-                              ? settings.userName[0].toUpperCase()
-                              : 'U',
-                          style: const TextStyle(
-                            fontSize: 24,
-                            fontWeight: FontWeight.bold,
-                            color: Colors.white,
-                          ),
-                        ),
-                      ),
-                    ),
-                    const SizedBox(width: 12),
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        mainAxisAlignment: MainAxisAlignment.start,
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          Flexible(
-                            child: Text(
-                              settings.userName,
-                              style: const TextStyle(
-                                fontSize: 22,
-                                fontWeight: FontWeight.bold,
-                                color: Colors.white,
-                              ),
-                              overflow: TextOverflow.ellipsis,
-                              maxLines: 1,
-                            ),
-                          ),
-                          const SizedBox(height: 2),
-                          Flexible(
-                            child: Text(
-                              'Quản lý tài khoản và cài đặt',
-                              style: TextStyle(
-                                fontSize: 13,
-                                color: Colors.white.withOpacity(0.8),
-                              ),
-                              overflow: TextOverflow.ellipsis,
-                              maxLines: 1,
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                  ],
+          ),
+          title: Padding(
+            padding: const EdgeInsets.only(top: 12),
+            child: Row(
+              children: [
+                const Expanded(
+                  child: Text(
+                    'Tài khoản người dùng',
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: TextStyle(
+                        fontSize: 22,
+                        fontWeight: FontWeight.bold,
+                        color: Colors.white),
+                  ),
                 ),
-              ),
+              ],
             ),
           ),
         ),
@@ -190,6 +138,28 @@ class _ProfileScreenState extends State<ProfileScreen>
                           }
                           return const SizedBox.shrink();
                         },
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 20),
+
+                  // Logout Button at bottom
+                  Row(
+                    children: [
+                      Expanded(
+                        child: OutlinedButton.icon(
+                          onPressed: () => _showSignOutDialog(context),
+                          icon: const Icon(Icons.logout, size: 18),
+                          label: const Text('Đăng xuất'),
+                          style: OutlinedButton.styleFrom(
+                            foregroundColor: Colors.red,
+                            side: const BorderSide(color: Colors.red),
+                            padding: const EdgeInsets.symmetric(vertical: 12),
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(8),
+                            ),
+                          ),
+                        ),
                       ),
                     ],
                   ),
@@ -266,26 +236,6 @@ class _ProfileScreenState extends State<ProfileScreen>
                   style: ElevatedButton.styleFrom(
                     backgroundColor: const Color(0xFF667eea),
                     foregroundColor: Colors.white,
-                    padding: const EdgeInsets.symmetric(vertical: 12),
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(8),
-                    ),
-                  ),
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 12),
-          Row(
-            children: [
-              Expanded(
-                child: OutlinedButton.icon(
-                  onPressed: () => _showSignOutDialog(context),
-                  icon: const Icon(Icons.logout, size: 18),
-                  label: const Text('Đăng xuất'),
-                  style: OutlinedButton.styleFrom(
-                    foregroundColor: Colors.red,
-                    side: const BorderSide(color: Colors.red),
                     padding: const EdgeInsets.symmetric(vertical: 12),
                     shape: RoundedRectangleBorder(
                       borderRadius: BorderRadius.circular(8),

@@ -96,7 +96,7 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
             title: const Text(
               'SpendSage',
               style: TextStyle(
-                fontSize: 24,
+                fontSize: 20,
                 fontWeight: FontWeight.bold,
               ),
             ),

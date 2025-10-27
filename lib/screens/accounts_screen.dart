@@ -22,7 +22,7 @@ class _AccountsScreenState extends State<AccountsScreen> {
         title: const Text(
           'Quản lý ví',
           style: TextStyle(
-            fontSize: 22,
+            fontSize: 20,
             fontWeight: FontWeight.bold,
             color: Colors.white,
           ),
