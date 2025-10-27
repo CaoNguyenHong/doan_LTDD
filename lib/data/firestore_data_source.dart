@@ -191,11 +191,17 @@ class FirestoreDataSource {
       _db.collection('users').doc(uid).collection('expenses');
 
   Stream<List<Map<String, dynamic>>> watchExpenses(String uid) =>
-      expenseRef(uid)
-          .where('deleted', isEqualTo: false)
-          .orderBy('dateTime', descending: true)
-          .snapshots()
-          .map((s) => s.docs.map((d) => {...d.data(), 'id': d.id}).toList());
+      expenseRef(uid).where('deleted', isEqualTo: false).snapshots().map((s) {
+        final docs = s.docs.map((d) => {...d.data(), 'id': d.id}).toList();
+        // Sort manually to avoid index requirement
+        docs.sort((a, b) {
+          final aDateTime = a['dateTime'] as Timestamp?;
+          final bDateTime = b['dateTime'] as Timestamp?;
+          if (aDateTime == null || bDateTime == null) return 0;
+          return bDateTime.compareTo(aDateTime); // descending
+        });
+        return docs;
+      });
 
   Future<void> addExpense(String uid, Map<String, dynamic> data) =>
       expenseRef(uid).doc().set({
@@ -246,10 +252,16 @@ class FirestoreDataSource {
       softDeleteExpense(uid, id);
 
   Future<List<Map<String, dynamic>>> getExpenses(String uid) async {
-    final snapshot = await expenseRef(uid)
-        .where('deleted', isEqualTo: false)
-        .orderBy('dateTime', descending: true)
-        .get();
-    return snapshot.docs.map((d) => {...d.data(), 'id': d.id}).toList();
+    final snapshot =
+        await expenseRef(uid).where('deleted', isEqualTo: false).get();
+    final docs = snapshot.docs.map((d) => {...d.data(), 'id': d.id}).toList();
+    // Sort manually to avoid index requirement
+    docs.sort((a, b) {
+      final aDateTime = a['dateTime'] as Timestamp?;
+      final bDateTime = b['dateTime'] as Timestamp?;
+      if (aDateTime == null || bDateTime == null) return 0;
+      return bDateTime.compareTo(aDateTime); // descending
+    });
+    return docs;
   }
 }
