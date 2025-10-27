@@ -38,7 +38,9 @@ class Budget {
       categoryId: map['categoryId'],
       limit: (map['limit'] ?? 0.0).toDouble(),
       spent: (map['spent'] ?? 0.0).toDouble(),
-      updatedAt: (map['updatedAt'] as Timestamp).toDate(),
+      updatedAt: map['updatedAt'] != null && map['updatedAt'] is Timestamp
+          ? (map['updatedAt'] as Timestamp).toDate()
+          : DateTime.now(),
     );
   }
 
@@ -54,7 +56,7 @@ class Budget {
       id: id,
       period: period ?? this.period,
       month: month ?? this.month,
-      categoryId: categoryId ?? this.categoryId,
+      categoryId: categoryId, // Allow null values to be set
       limit: limit ?? this.limit,
       spent: spent ?? this.spent,
       updatedAt: updatedAt ?? this.updatedAt,
@@ -70,10 +72,14 @@ class Budget {
 
   String get periodDisplayName {
     switch (period) {
-      case 'monthly':
-        return 'Hàng tháng';
+      case 'daily':
+        return 'Hàng ngày';
       case 'weekly':
         return 'Hàng tuần';
+      case 'monthly':
+        return 'Hàng tháng';
+      case 'yearly':
+        return 'Hàng năm';
       default:
         return 'Khác';
     }

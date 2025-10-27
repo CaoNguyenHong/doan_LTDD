@@ -1,10 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
-import 'package:currency_picker/currency_picker.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import '../providers/settings_provider.dart';
 import '../auth/auth_repo.dart';
 import '../auth/auth_gate.dart';
-import '../providers/expense_provider.dart';
 
 class ProfileScreen extends StatefulWidget {
   const ProfileScreen({super.key});
@@ -53,219 +52,159 @@ class _ProfileScreenState extends State<ProfileScreen>
     return Consumer<SettingsProvider>(
       builder: (context, settings, _) => Scaffold(
         backgroundColor: const Color(0xFFF8F9FA),
-        body: FadeTransition(
-          opacity: _fadeAnimation,
-          child: CustomScrollView(
-            slivers: [
-              // Custom App Bar with Profile Header
-              SliverAppBar(
-                expandedHeight: 280,
-                floating: false,
-                pinned: true,
-                backgroundColor: const Color(0xFF667eea),
-                flexibleSpace: FlexibleSpaceBar(
-                  background: Container(
-                    decoration: const BoxDecoration(
-                      gradient: LinearGradient(
-                        begin: Alignment.topLeft,
-                        end: Alignment.bottomRight,
-                        colors: [
-                          Color(0xFF667eea),
-                          Color(0xFF764ba2),
+        appBar: AppBar(
+          backgroundColor: const Color(0xFF667eea),
+          foregroundColor: Colors.white,
+          elevation: 0,
+          flexibleSpace: Container(
+            decoration: const BoxDecoration(
+              gradient: LinearGradient(
+                begin: Alignment.topLeft,
+                end: Alignment.bottomRight,
+                colors: [
+                  Color(0xFF667eea),
+                  Color(0xFF764ba2),
+                ],
+              ),
+            ),
+            child: SafeArea(
+              child: Padding(
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+                child: Row(
+                  children: [
+                    Container(
+                      width: 50,
+                      height: 50,
+                      decoration: BoxDecoration(
+                        color: Colors.white.withOpacity(0.2),
+                        borderRadius: BorderRadius.circular(25),
+                        border: Border.all(
+                          color: Colors.white.withOpacity(0.3),
+                          width: 2,
+                        ),
+                      ),
+                      child: Center(
+                        child: Text(
+                          settings.userName.isNotEmpty
+                              ? settings.userName[0].toUpperCase()
+                              : 'U',
+                          style: const TextStyle(
+                            fontSize: 20,
+                            fontWeight: FontWeight.bold,
+                            color: Colors.white,
+                          ),
+                        ),
+                      ),
+                    ),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          Text(
+                            settings.userName,
+                            style: const TextStyle(
+                              fontSize: 20,
+                              fontWeight: FontWeight.bold,
+                              color: Colors.white,
+                            ),
+                          ),
+                          const SizedBox(height: 2),
+                          Text(
+                            'Quản lý tài khoản và cài đặt',
+                            style: TextStyle(
+                              fontSize: 12,
+                              color: Colors.white.withOpacity(0.8),
+                            ),
+                          ),
                         ],
                       ),
                     ),
-                    child: SafeArea(
-                      child: Padding(
-                        padding: const EdgeInsets.all(20),
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          mainAxisAlignment: MainAxisAlignment.end,
-                          children: [
-                            Row(
-                              children: [
-                                Container(
-                                  width: 60,
-                                  height: 60,
-                                  decoration: BoxDecoration(
-                                    color: Colors.white.withOpacity(0.2),
-                                    borderRadius: BorderRadius.circular(30),
-                                    border: Border.all(
-                                      color: Colors.white.withOpacity(0.3),
-                                      width: 2,
-                                    ),
-                                  ),
-                                  child: Center(
-                                    child: Text(
-                                      settings.userName.isNotEmpty
-                                          ? settings.userName[0].toUpperCase()
-                                          : 'U',
-                                      style: const TextStyle(
-                                        fontSize: 24,
-                                        fontWeight: FontWeight.bold,
-                                        color: Colors.white,
-                                      ),
-                                    ),
-                                  ),
-                                ),
-                                const SizedBox(width: 16),
-                                Expanded(
-                                  child: Column(
-                                    crossAxisAlignment:
-                                        CrossAxisAlignment.start,
-                                    children: [
-                                      Text(
-                                        settings.userName,
-                                        style: const TextStyle(
-                                          fontSize: 24,
-                                          fontWeight: FontWeight.bold,
-                                          color: Colors.white,
-                                        ),
-                                      ),
-                                      const SizedBox(height: 4),
-                                      Text(
-                                        'Quản lý tài khoản và cài đặt',
-                                        style: TextStyle(
-                                          fontSize: 14,
-                                          color: Colors.white.withOpacity(0.8),
-                                        ),
-                                      ),
-                                    ],
-                                  ),
-                                ),
-                              ],
-                            ),
-                          ],
-                        ),
+                  ],
+                ),
+              ),
+            ),
+          ),
+        ),
+        body: FadeTransition(
+          opacity: _fadeAnimation,
+          child: SlideTransition(
+            position: _slideAnimation,
+            child: SingleChildScrollView(
+              padding: const EdgeInsets.all(20),
+              child: Column(
+                children: [
+                  // User Information & Account Management
+                  _buildUserInfoAndAccountSection(context, settings),
+                  const SizedBox(height: 20),
+
+                  // App Information
+                  _buildSection(
+                    context,
+                    'Thông tin ứng dụng',
+                    Icons.info,
+                    const Color(0xFF667eea),
+                    [
+                      _buildListTile(
+                        'Phiên bản',
+                        '1.0.0',
+                        Icons.info_outline,
+                        () {},
                       ),
-                    ),
+                      _buildListTile(
+                        'Về ứng dụng',
+                        'SpendSage - Quản lý tài chính cá nhân',
+                        Icons.description,
+                        () => _showAboutDialog(context),
+                      ),
+                      _buildListTile(
+                        'Hỗ trợ',
+                        'Liên hệ hỗ trợ',
+                        Icons.support,
+                        () => _showSupportDialog(context),
+                      ),
+                    ],
                   ),
-                ),
-              ),
+                  const SizedBox(height: 20),
 
-              // Content
-              SliverToBoxAdapter(
-                child: SlideTransition(
-                  position: _slideAnimation,
-                  child: Padding(
-                    padding: const EdgeInsets.all(20),
-                    child: Column(
-                      children: [
-                        // Quick Stats
-                        _buildQuickStats(settings),
-                        const SizedBox(height: 20),
-
-                        // Settings Sections
-                        _buildSection(
-                          context,
-                          'Giao diện',
-                          Icons.palette,
-                          const Color(0xFF667eea),
-                          [
-                            _buildSwitchTile(
-                              'Chế độ tối',
-                              'Bật/tắt giao diện tối',
-                              Icons.dark_mode,
-                              settings.isDarkMode,
-                              settings.setDarkModeCompat,
-                            ),
-                          ],
-                        ),
-                        const SizedBox(height: 20),
-
-                        _buildSection(
-                          context,
-                          'Tiền tệ và giới hạn',
-                          Icons.account_balance_wallet,
-                          const Color(0xFF48BB78),
-                          [
-                            _buildListTile(
-                              'Tiền tệ',
-                              settings.currency,
-                              Icons.attach_money,
-                              () => _showCurrencyPicker(context, settings),
-                            ),
-                            if (settings.previousCurrency != settings.currency)
-                              _buildExchangeRateTile(
-                                context,
-                                settings.previousCurrency,
-                                settings.currency,
-                                settings.exchangeRate,
-                              ),
-                            _buildLimitTile(
-                              context,
-                              'Thu nhập hàng tháng',
-                              settings.monthlyIncome,
-                              settings.currency,
-                              settings.setMonthlyIncome,
-                            ),
-                            _buildLimitTile(
-                              context,
-                              'Giới hạn hàng ngày',
-                              settings.dailyLimit,
-                              settings.currency,
-                              settings.setDailyLimit,
-                            ),
-                            _buildLimitTile(
-                              context,
-                              'Giới hạn hàng tuần',
-                              settings.weeklyLimit,
-                              settings.currency,
-                              settings.setWeeklyLimit,
-                            ),
-                            _buildLimitTile(
-                              context,
-                              'Giới hạn hàng tháng',
-                              settings.monthlyLimit,
-                              settings.currency,
-                              settings.setMonthlyLimit,
-                            ),
-                            _buildLimitTile(
-                              context,
-                              'Giới hạn hàng năm',
-                              settings.yearlyLimit,
-                              settings.currency,
-                              settings.setYearlyLimit,
-                            ),
-                          ],
-                        ),
-                        const SizedBox(height: 20),
-
-                        _buildSection(
-                          context,
-                          'Tài khoản',
-                          Icons.person,
-                          const Color(0xFFED8936),
-                          [
-                            _buildListTile(
-                              'Đổi tên người dùng',
-                              settings.userName,
-                              Icons.edit,
-                              () => _showUsernameDialog(context, settings),
-                            ),
-                            _buildListTile(
-                              'Đăng xuất',
-                              'Đăng xuất khỏi tài khoản của bạn',
-                              Icons.logout,
-                              () => _showSignOutDialog(context),
-                              isDestructive: true,
-                            ),
-                          ],
-                        ),
-                        const SizedBox(height: 40),
-                      ],
-                    ),
+                  // Data Management
+                  _buildSection(
+                    context,
+                    'Quản lý dữ liệu',
+                    Icons.storage,
+                    const Color(0xFF48BB78),
+                    [
+                      _buildListTile(
+                        'Xuất dữ liệu',
+                        'Tải xuống dữ liệu của bạn',
+                        Icons.download,
+                        () => _showExportDialog(context),
+                      ),
+                      _buildListTile(
+                        'Xóa tài khoản',
+                        'Xóa vĩnh viễn tài khoản và dữ liệu',
+                        Icons.delete_forever,
+                        () => _showDeleteAccountDialog(context),
+                        isDestructive: true,
+                      ),
+                    ],
                   ),
-                ),
+                  const SizedBox(height: 40),
+                ],
               ),
-            ],
+            ),
           ),
         ),
       ),
     );
   }
 
-  Widget _buildQuickStats(SettingsProvider settings) {
+  Widget _buildUserInfoAndAccountSection(
+      BuildContext context, SettingsProvider settings) {
+    final user = FirebaseAuth.instance.currentUser;
+
     return Container(
       padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
@@ -282,31 +221,74 @@ class _ProfileScreenState extends State<ProfileScreen>
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text(
-            'Thống kê nhanh',
-            style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                  fontWeight: FontWeight.bold,
-                  color: const Color(0xFF2D3748),
+          Row(
+            children: [
+              Container(
+                padding: const EdgeInsets.all(8),
+                decoration: BoxDecoration(
+                  color: const Color(0xFF667eea).withOpacity(0.1),
+                  borderRadius: BorderRadius.circular(8),
                 ),
+                child: const Icon(Icons.person,
+                    color: Color(0xFF667eea), size: 20),
+              ),
+              const SizedBox(width: 12),
+              const Text(
+                'Thông tin cá nhân',
+                style: TextStyle(
+                  fontSize: 18,
+                  fontWeight: FontWeight.bold,
+                  color: Color(0xFF2D3748),
+                ),
+              ),
+            ],
           ),
           const SizedBox(height: 16),
+          _buildInfoRow('Email', user?.email ?? 'Chưa có email', Icons.email),
+          _buildInfoRow(
+              'Tên người dùng', settings.userName, Icons.person_outline),
+          _buildInfoRow('Số điện thoại',
+              user?.phoneNumber ?? 'Chưa có số điện thoại', Icons.phone),
+          _buildInfoRow('Ngày tạo tài khoản',
+              _formatDate(user?.metadata.creationTime), Icons.calendar_today),
+          _buildInfoRow('Lần đăng nhập cuối',
+              _formatDate(user?.metadata.lastSignInTime), Icons.access_time),
+          const SizedBox(height: 20),
           Row(
             children: [
               Expanded(
-                child: _buildStatItem(
-                  'Thu nhập tháng',
-                  '\$${settings.monthlyIncome.toStringAsFixed(0)}',
-                  Icons.trending_up,
-                  const Color(0xFF48BB78),
+                child: ElevatedButton.icon(
+                  onPressed: () => _showEditUserInfoDialog(context, settings),
+                  icon: const Icon(Icons.edit, size: 18),
+                  label: const Text('Chỉnh sửa thông tin'),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: const Color(0xFF667eea),
+                    foregroundColor: Colors.white,
+                    padding: const EdgeInsets.symmetric(vertical: 12),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                  ),
                 ),
               ),
-              const SizedBox(width: 12),
+            ],
+          ),
+          const SizedBox(height: 12),
+          Row(
+            children: [
               Expanded(
-                child: _buildStatItem(
-                  'Giới hạn ngày',
-                  '\$${settings.dailyLimit.toStringAsFixed(0)}',
-                  Icons.schedule,
-                  const Color(0xFF667eea),
+                child: OutlinedButton.icon(
+                  onPressed: () => _showSignOutDialog(context),
+                  icon: const Icon(Icons.logout, size: 18),
+                  label: const Text('Đăng xuất'),
+                  style: OutlinedButton.styleFrom(
+                    foregroundColor: Colors.red,
+                    side: const BorderSide(color: Colors.red),
+                    padding: const EdgeInsets.symmetric(vertical: 12),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                  ),
                 ),
               ),
             ],
@@ -316,46 +298,45 @@ class _ProfileScreenState extends State<ProfileScreen>
     );
   }
 
-  Widget _buildStatItem(
-      String label, String value, IconData icon, Color color) {
-    return Container(
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: color.withOpacity(0.1),
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(
-          color: color.withOpacity(0.2),
-        ),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
+  Widget _buildInfoRow(String label, String value, IconData icon) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 8),
+      child: Row(
         children: [
-          Row(
-            children: [
-              Icon(icon, color: color, size: 20),
-              const Spacer(),
-            ],
-          ),
-          const SizedBox(height: 8),
-          Text(
-            value,
-            style: TextStyle(
-              fontSize: 18,
-              fontWeight: FontWeight.bold,
-              color: color,
-            ),
-          ),
-          const SizedBox(height: 4),
-          Text(
-            label,
-            style: TextStyle(
-              fontSize: 12,
-              color: Colors.grey.shade600,
+          Icon(icon, color: Colors.grey.shade600, size: 20),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  label,
+                  style: TextStyle(
+                    fontSize: 12,
+                    color: Colors.grey.shade600,
+                    fontWeight: FontWeight.w500,
+                  ),
+                ),
+                const SizedBox(height: 2),
+                Text(
+                  value,
+                  style: const TextStyle(
+                    fontSize: 14,
+                    fontWeight: FontWeight.w600,
+                    color: Color(0xFF2D3748),
+                  ),
+                ),
+              ],
             ),
           ),
         ],
       ),
     );
+  }
+
+  String _formatDate(DateTime? date) {
+    if (date == null) return 'Không có thông tin';
+    return '${date.day}/${date.month}/${date.year}';
   }
 
   Widget _buildSection(
@@ -454,284 +435,232 @@ class _ProfileScreenState extends State<ProfileScreen>
     );
   }
 
-  Widget _buildExchangeRateTile(
-    BuildContext context,
-    String fromCurrency,
-    String toCurrency,
-    double exchangeRate,
-  ) {
-    return Container(
-      margin: const EdgeInsets.symmetric(vertical: 4),
-      padding: const EdgeInsets.all(12),
-      decoration: BoxDecoration(
-        color: Colors.blue.shade50,
-        borderRadius: BorderRadius.circular(8),
-        border: Border.all(color: Colors.blue.shade200),
-      ),
-      child: Row(
-        children: [
-          Icon(Icons.currency_exchange, color: Colors.blue.shade600, size: 20),
-          const SizedBox(width: 12),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  'Tỉ giá hiện tại',
-                  style: TextStyle(
-                    fontWeight: FontWeight.bold,
-                    color: Colors.blue.shade700,
-                    fontSize: 12,
-                  ),
-                ),
-                const SizedBox(height: 2),
-                Text(
-                  '1 $fromCurrency = ${exchangeRate.toStringAsFixed(4)} $toCurrency',
-                  style: TextStyle(
-                    color: Colors.blue.shade600,
-                    fontSize: 14,
-                  ),
-                ),
-              ],
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildSwitchTile(
-    String title,
-    String subtitle,
-    IconData icon,
-    bool value,
-    Function(bool) onChanged,
-  ) {
-    return ListTile(
-      leading: Container(
-        padding: const EdgeInsets.all(8),
-        decoration: BoxDecoration(
-          color: Colors.grey.withOpacity(0.1),
-          borderRadius: BorderRadius.circular(8),
-        ),
-        child: Icon(icon, color: Colors.grey.shade600, size: 20),
-      ),
-      title: Text(
-        title,
-        style: const TextStyle(
-          fontWeight: FontWeight.w600,
-          color: Color(0xFF2D3748),
-        ),
-      ),
-      subtitle: Text(
-        subtitle,
-        style: TextStyle(color: Colors.grey.shade600),
-      ),
-      trailing: Switch(
-        value: value,
-        onChanged: onChanged,
-        activeColor: const Color(0xFF667eea),
-      ),
-    );
-  }
-
-  Widget _buildLimitTile(
-    BuildContext context,
-    String title,
-    double value,
-    String currency,
-    Function(double) onChanged,
-  ) {
-    return ListTile(
-      leading: Container(
-        padding: const EdgeInsets.all(8),
-        decoration: BoxDecoration(
-          color: Colors.grey.withOpacity(0.1),
-          borderRadius: BorderRadius.circular(8),
-        ),
-        child: Icon(Icons.attach_money, color: Colors.grey.shade600, size: 20),
-      ),
-      title: Text(
-        title,
-        style: const TextStyle(
-          fontWeight: FontWeight.w600,
-          color: Color(0xFF2D3748),
-        ),
-      ),
-      subtitle: Text(
-        '$currency${value.toStringAsFixed(2)}',
-        style: TextStyle(color: Colors.grey.shade600),
-      ),
-      trailing: Icon(
-        Icons.arrow_forward_ios,
-        size: 16,
-        color: Colors.grey.shade400,
-      ),
-      onTap: () => _showNumberInputDialog(context, title, value, onChanged),
-    );
-  }
-
-  void _showNumberInputDialog(
-    BuildContext context,
-    String title,
-    double currentValue,
-    Function(double) onChanged,
-  ) {
-    final controller = TextEditingController(
-      text: currentValue.toStringAsFixed(2),
-    );
-
+  void _showAboutDialog(BuildContext context) {
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
         shape: RoundedRectangleBorder(
           borderRadius: BorderRadius.circular(16),
         ),
-        title: Text('Đặt $title'),
-        content: TextField(
-          controller: controller,
-          keyboardType: const TextInputType.numberWithOptions(decimal: true),
-          decoration: const InputDecoration(
-            prefixText: '\$',
-            border: OutlineInputBorder(),
-          ),
+        title: const Text('Về ứng dụng'),
+        content: const Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              'SpendSage',
+              style: TextStyle(
+                fontSize: 20,
+                fontWeight: FontWeight.bold,
+                color: Color(0xFF667eea),
+              ),
+            ),
+            SizedBox(height: 8),
+            Text('Phiên bản: 1.0.0'),
+            SizedBox(height: 16),
+            Text(
+              'SpendSage là ứng dụng quản lý tài chính cá nhân giúp bạn theo dõi chi tiêu, thu nhập và quản lý ngân sách một cách hiệu quả.',
+              style: TextStyle(height: 1.5),
+            ),
+            SizedBox(height: 16),
+            Text(
+              'Tính năng chính:',
+              style: TextStyle(fontWeight: FontWeight.bold),
+            ),
+            SizedBox(height: 8),
+            Text('• Quản lý giao dịch thu chi'),
+            Text('• Theo dõi ngân sách'),
+            Text('• Phân tích chi tiêu'),
+            Text('• Quản lý ví'),
+            Text('• Báo cáo thống kê'),
+          ],
         ),
         actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: const Text('Hủy'),
-          ),
           ElevatedButton(
-            onPressed: () {
-              final value = double.tryParse(controller.text);
-              if (value != null) {
-                onChanged(value);
-                Navigator.pop(context);
-              }
-            },
+            onPressed: () => Navigator.pop(context),
             style: ElevatedButton.styleFrom(
               backgroundColor: const Color(0xFF667eea),
               foregroundColor: Colors.white,
             ),
-            child: const Text('Lưu'),
+            child: const Text('Đóng'),
           ),
         ],
       ),
     );
   }
 
-  void _showCurrencyPicker(BuildContext context, SettingsProvider settings) {
-    showCurrencyPicker(
+  void _showSupportDialog(BuildContext context) {
+    showDialog(
       context: context,
-      onSelect: (Currency currency) async {
-        if (settings.currency != currency.code) {
-          // Show confirmation dialog for currency conversion
-          final shouldConvert = await _showCurrencyConversionDialog(
-            context,
-            settings.currency,
-            currency.code,
-            settings.exchangeRate,
-          );
-
-          if (shouldConvert) {
-            await settings.setCurrency(currency.code);
-            // Convert expenses to new currency
-            final expenseProvider =
-                Provider.of<ExpenseProvider>(context, listen: false);
-            await expenseProvider.convertExpensesToCurrency(
-              settings.previousCurrency,
-              currency.code,
-            );
-
-            if (context.mounted) {
-              ScaffoldMessenger.of(context).showSnackBar(
-                SnackBar(
-                  content: Text(
-                      '✅ Đã chuyển đổi tỉ giá từ ${settings.previousCurrency} sang ${currency.code}'),
-                  backgroundColor: Colors.green,
-                ),
-              );
-            }
-          }
-        }
-      },
+      builder: (context) => AlertDialog(
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(16),
+        ),
+        title: const Text('Hỗ trợ'),
+        content: const Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              'Liên hệ hỗ trợ',
+              style: TextStyle(
+                fontSize: 16,
+                fontWeight: FontWeight.bold,
+              ),
+            ),
+            SizedBox(height: 16),
+            Text('Email: support@spendsage.com'),
+            SizedBox(height: 8),
+            Text('Hotline: 1900-xxxx'),
+            SizedBox(height: 16),
+            Text(
+              'Giờ làm việc:',
+              style: TextStyle(fontWeight: FontWeight.bold),
+            ),
+            Text('Thứ 2 - Thứ 6: 8:00 - 17:00'),
+            Text('Thứ 7: 8:00 - 12:00'),
+            SizedBox(height: 16),
+            Text(
+              'Chúng tôi sẽ phản hồi trong vòng 24 giờ.',
+              style: TextStyle(
+                fontStyle: FontStyle.italic,
+                color: Colors.grey,
+              ),
+            ),
+          ],
+        ),
+        actions: [
+          ElevatedButton(
+            onPressed: () => Navigator.pop(context),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: const Color(0xFF667eea),
+              foregroundColor: Colors.white,
+            ),
+            child: const Text('Đóng'),
+          ),
+        ],
+      ),
     );
   }
 
-  Future<bool> _showCurrencyConversionDialog(
-    BuildContext context,
-    String fromCurrency,
-    String toCurrency,
-    double exchangeRate,
-  ) async {
-    return await showDialog<bool>(
-          context: context,
-          builder: (context) => AlertDialog(
-            title: const Text('Chuyển đổi tỉ giá'),
-            content: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Text(
-                    'Bạn có muốn chuyển đổi tất cả chi tiêu từ $fromCurrency sang $toCurrency?'),
-                const SizedBox(height: 16),
-                Container(
-                  padding: const EdgeInsets.all(12),
-                  decoration: BoxDecoration(
-                    color: Colors.blue.shade50,
-                    borderRadius: BorderRadius.circular(8),
-                    border: Border.all(color: Colors.blue.shade200),
-                  ),
-                  child: Column(
-                    children: [
-                      Text(
-                        'Tỉ giá hiện tại',
-                        style: TextStyle(
-                          fontWeight: FontWeight.bold,
-                          color: Colors.blue.shade700,
-                        ),
-                      ),
-                      const SizedBox(height: 4),
-                      Text(
-                        '1 $fromCurrency = ${exchangeRate.toStringAsFixed(4)} $toCurrency',
-                        style: TextStyle(
-                          fontSize: 16,
-                          color: Colors.blue.shade600,
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-                const SizedBox(height: 8),
-                Text(
-                  'Tất cả số tiền trong chi tiêu sẽ được chuyển đổi theo tỉ giá này.',
-                  style: TextStyle(
-                    fontSize: 12,
-                    color: Colors.grey.shade600,
-                  ),
-                ),
-              ],
+  void _showExportDialog(BuildContext context) {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(16),
+        ),
+        title: const Text('Xuất dữ liệu'),
+        content: const Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(
+              Icons.download,
+              size: 48,
+              color: Color(0xFF48BB78),
             ),
-            actions: [
-              TextButton(
-                onPressed: () => Navigator.pop(context, false),
-                child: const Text('Hủy'),
-              ),
-              ElevatedButton(
-                onPressed: () => Navigator.pop(context, true),
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: Colors.blue,
-                  foregroundColor: Colors.white,
-                ),
-                child: const Text('Chuyển đổi'),
-              ),
-            ],
+            SizedBox(height: 16),
+            Text(
+              'Tính năng xuất dữ liệu sẽ được phát triển trong phiên bản tiếp theo.',
+              textAlign: TextAlign.center,
+            ),
+            SizedBox(height: 16),
+            Text(
+              'Bạn sẽ có thể xuất:',
+              style: TextStyle(fontWeight: FontWeight.bold),
+            ),
+            SizedBox(height: 8),
+            Text('• Danh sách giao dịch (CSV)'),
+            Text('• Báo cáo chi tiêu (PDF)'),
+            Text('• Dữ liệu ngân sách (JSON)'),
+          ],
+        ),
+        actions: [
+          ElevatedButton(
+            onPressed: () => Navigator.pop(context),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: const Color(0xFF48BB78),
+              foregroundColor: Colors.white,
+            ),
+            child: const Text('Đóng'),
           ),
-        ) ??
-        false;
+        ],
+      ),
+    );
   }
 
-  void _showUsernameDialog(BuildContext context, SettingsProvider settings) {
-    final controller = TextEditingController(text: settings.userName);
+  void _showDeleteAccountDialog(BuildContext context) {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(16),
+        ),
+        title: const Text(
+          'Xóa tài khoản',
+          style: TextStyle(color: Colors.red),
+        ),
+        content: const Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(
+              Icons.warning,
+              size: 48,
+              color: Colors.red,
+            ),
+            SizedBox(height: 16),
+            Text(
+              'Cảnh báo: Hành động này không thể hoàn tác!',
+              style: TextStyle(
+                fontWeight: FontWeight.bold,
+                color: Colors.red,
+              ),
+            ),
+            SizedBox(height: 16),
+            Text(
+              'Xóa tài khoản sẽ:',
+              style: TextStyle(fontWeight: FontWeight.bold),
+            ),
+            SizedBox(height: 8),
+            Text('• Xóa vĩnh viễn tất cả dữ liệu'),
+            Text('• Xóa tất cả giao dịch'),
+            Text('• Xóa tất cả ngân sách'),
+            Text('• Xóa tất cả ví'),
+            SizedBox(height: 16),
+            Text(
+              'Tính năng này sẽ được phát triển trong phiên bản tiếp theo.',
+              style: TextStyle(
+                fontStyle: FontStyle.italic,
+                color: Colors.grey,
+              ),
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('Hủy'),
+          ),
+          ElevatedButton(
+            onPressed: () => Navigator.pop(context),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: Colors.red,
+              foregroundColor: Colors.white,
+            ),
+            child: const Text('Tôi hiểu'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _showEditUserInfoDialog(
+      BuildContext context, SettingsProvider settings) {
+    final nameController = TextEditingController(text: settings.userName);
+    final emailController = TextEditingController(
+        text: FirebaseAuth.instance.currentUser?.email ?? '');
+    final phoneController = TextEditingController(
+        text: FirebaseAuth.instance.currentUser?.phoneNumber ?? '');
 
     showDialog(
       context: context,
@@ -739,12 +668,40 @@ class _ProfileScreenState extends State<ProfileScreen>
         shape: RoundedRectangleBorder(
           borderRadius: BorderRadius.circular(16),
         ),
-        title: const Text('Đổi tên người dùng'),
-        content: TextField(
-          controller: controller,
-          decoration: const InputDecoration(
-            labelText: 'Tên người dùng',
-            border: OutlineInputBorder(),
+        title: const Text('Chỉnh sửa thông tin'),
+        content: SingleChildScrollView(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              TextField(
+                controller: nameController,
+                decoration: const InputDecoration(
+                  labelText: 'Tên người dùng',
+                  border: OutlineInputBorder(),
+                  prefixIcon: Icon(Icons.person),
+                ),
+              ),
+              const SizedBox(height: 16),
+              TextField(
+                controller: emailController,
+                decoration: const InputDecoration(
+                  labelText: 'Email',
+                  border: OutlineInputBorder(),
+                  prefixIcon: Icon(Icons.email),
+                ),
+                keyboardType: TextInputType.emailAddress,
+              ),
+              const SizedBox(height: 16),
+              TextField(
+                controller: phoneController,
+                decoration: const InputDecoration(
+                  labelText: 'Số điện thoại',
+                  border: OutlineInputBorder(),
+                  prefixIcon: Icon(Icons.phone),
+                ),
+                keyboardType: TextInputType.phone,
+              ),
+            ],
           ),
         ),
         actions: [
@@ -754,9 +711,22 @@ class _ProfileScreenState extends State<ProfileScreen>
           ),
           ElevatedButton(
             onPressed: () {
-              if (controller.text.isNotEmpty) {
-                settings.setUserName(controller.text);
+              if (nameController.text.isNotEmpty) {
+                settings.setUserName(nameController.text);
                 Navigator.pop(context);
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(
+                    content: Row(
+                      children: [
+                        Icon(Icons.check_circle, color: Colors.white),
+                        SizedBox(width: 8),
+                        Text('Cập nhật thông tin thành công!'),
+                      ],
+                    ),
+                    backgroundColor: Colors.green,
+                    behavior: SnackBarBehavior.floating,
+                  ),
+                );
               }
             },
             style: ElevatedButton.styleFrom(

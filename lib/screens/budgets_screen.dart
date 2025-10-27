@@ -13,6 +13,8 @@ class BudgetsScreen extends StatefulWidget {
 }
 
 class _BudgetsScreenState extends State<BudgetsScreen> {
+  String? _selectedCategoryFilter; // null = "Toàn bộ"
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -114,25 +116,26 @@ class _BudgetsScreenState extends State<BudgetsScreen> {
                 ],
 
                 // Budgets list
-                Text(
-                  'Danh sách ngân sách',
-                  style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                        fontWeight: FontWeight.bold,
-                      ),
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    Text(
+                      'Danh sách ngân sách',
+                      style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                            fontWeight: FontWeight.bold,
+                          ),
+                    ),
+                    _buildCategoryFilter(),
+                  ],
                 ),
                 const SizedBox(height: 16),
 
-                ...budgetProvider.budgets.map((budget) =>
+                ..._getFilteredBudgets(budgetProvider.budgets).map((budget) =>
                     _buildBudgetCard(context, budget, budgetProvider)),
               ],
             ),
           );
         },
-      ),
-      floatingActionButton: FloatingActionButton.extended(
-        onPressed: () => _showAddBudgetDialog(context),
-        icon: const Icon(Icons.add),
-        label: const Text('Tạo ngân sách'),
       ),
     );
   }
@@ -198,7 +201,7 @@ class _BudgetsScreenState extends State<BudgetsScreen> {
                           ),
                     ),
                     Text(
-                      CurrencyFormatter.format(totalLimit, currency: '\$'),
+                      CurrencyFormatter.format(totalLimit, currency: 'VND'),
                       style:
                           Theme.of(context).textTheme.headlineMedium?.copyWith(
                                 color: Colors.white,
@@ -219,7 +222,7 @@ class _BudgetsScreenState extends State<BudgetsScreen> {
                           ),
                     ),
                     Text(
-                      CurrencyFormatter.format(totalSpent, currency: '\$'),
+                      CurrencyFormatter.format(totalSpent, currency: 'VND'),
                       style:
                           Theme.of(context).textTheme.headlineMedium?.copyWith(
                                 color: Colors.white,
@@ -327,7 +330,7 @@ class _BudgetsScreenState extends State<BudgetsScreen> {
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Text(
-                        budget.categoryId ?? 'Toàn bộ',
+                        _getCategoryDisplayName(budget.categoryId),
                         style: const TextStyle(
                           fontWeight: FontWeight.bold,
                           fontSize: 16,
@@ -370,11 +373,11 @@ class _BudgetsScreenState extends State<BudgetsScreen> {
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
                     Text(
-                      'Đã chi: ${CurrencyFormatter.format(budget.spent, currency: '\$')}',
+                      'Đã chi: ${CurrencyFormatter.format(budget.spent, currency: 'VND')}',
                       style: const TextStyle(fontWeight: FontWeight.w600),
                     ),
                     Text(
-                      'Giới hạn: ${CurrencyFormatter.format(budget.limit, currency: '\$')}',
+                      'Giới hạn: ${CurrencyFormatter.format(budget.limit, currency: 'VND')}',
                       style: TextStyle(
                         color: Colors.grey.shade600,
                       ),
@@ -439,17 +442,63 @@ class _BudgetsScreenState extends State<BudgetsScreen> {
     return Colors.green;
   }
 
+  String _getCategoryDisplayName(String? categoryId) {
+    if (categoryId == null) return 'Toàn bộ';
+
+    switch (categoryId) {
+      case 'food':
+        return 'Ăn uống';
+      case 'transport':
+        return 'Giao thông';
+      case 'entertainment':
+        return 'Giải trí';
+      case 'shopping':
+        return 'Mua sắm';
+      case 'health':
+        return 'Sức khỏe';
+      case 'education':
+        return 'Giáo dục';
+      case 'utilities':
+        return 'Tiện ích';
+      case 'other':
+        return 'Khác';
+      default:
+        return categoryId;
+    }
+  }
+
+  String _getPeriodIdentifier(String period) {
+    final now = DateTime.now();
+    switch (period) {
+      case 'daily':
+        return '${now.year}-${now.month.toString().padLeft(2, '0')}-${now.day.toString().padLeft(2, '0')}';
+      case 'weekly':
+        final weekStart = now.subtract(Duration(days: now.weekday - 1));
+        return '${weekStart.year}-${weekStart.month.toString().padLeft(2, '0')}-${weekStart.day.toString().padLeft(2, '0')}';
+      case 'monthly':
+        return '${now.year}-${now.month.toString().padLeft(2, '0')}';
+      case 'yearly':
+        return '${now.year}';
+      default:
+        return '${now.year}-${now.month.toString().padLeft(2, '0')}';
+    }
+  }
+
   void _showAddBudgetDialog(BuildContext context) {
     final limitController = TextEditingController();
     String selectedPeriod = 'monthly';
     String? selectedCategory;
-    String selectedMonth =
-        '${DateTime.now().year}-${DateTime.now().month.toString().padLeft(2, '0')}';
+
+    // Calculate period identifier based on selected period
+    String selectedMonth = _getPeriodIdentifier(selectedPeriod);
+
+    // Get providers at the beginning
+    final budgetProvider = Provider.of<BudgetProvider>(context, listen: false);
 
     showDialog(
       context: context,
-      builder: (context) => StatefulBuilder(
-        builder: (context, setState) => AlertDialog(
+      builder: (dialogContext) => StatefulBuilder(
+        builder: (dialogContext, setState) => AlertDialog(
           title: const Text('Tạo ngân sách mới'),
           content: SingleChildScrollView(
             child: Column(
@@ -462,19 +511,27 @@ class _BudgetsScreenState extends State<BudgetsScreen> {
                     border: OutlineInputBorder(),
                   ),
                   items: const [
+                    DropdownMenuItem(value: 'daily', child: Text('Hàng ngày')),
+                    DropdownMenuItem(value: 'weekly', child: Text('Hàng tuần')),
                     DropdownMenuItem(
                         value: 'monthly', child: Text('Hàng tháng')),
-                    DropdownMenuItem(value: 'weekly', child: Text('Hàng tuần')),
+                    DropdownMenuItem(value: 'yearly', child: Text('Hàng năm')),
                   ],
-                  onChanged: (value) => setState(() => selectedPeriod = value!),
+                  onChanged: (value) {
+                    setState(() {
+                      selectedPeriod = value!;
+                      selectedMonth = _getPeriodIdentifier(selectedPeriod);
+                    });
+                  },
                 ),
                 const SizedBox(height: 16),
                 TextField(
                   controller: limitController,
                   keyboardType: TextInputType.numberWithOptions(decimal: true),
                   decoration: const InputDecoration(
-                    labelText: 'Giới hạn ngân sách',
+                    labelText: 'Giới hạn ngân sách (VND)',
                     border: OutlineInputBorder(),
+                    prefixText: 'VND ',
                   ),
                 ),
                 const SizedBox(height: 16),
@@ -510,7 +567,7 @@ class _BudgetsScreenState extends State<BudgetsScreen> {
           ),
           actions: [
             TextButton(
-              onPressed: () => Navigator.pop(context),
+              onPressed: () => Navigator.pop(dialogContext),
               child: const Text('Hủy'),
             ),
             ElevatedButton(
@@ -526,13 +583,11 @@ class _BudgetsScreenState extends State<BudgetsScreen> {
                     updatedAt: DateTime.now(),
                   );
 
-                  final budgetProvider =
-                      Provider.of<BudgetProvider>(context, listen: false);
                   await budgetProvider.addBudget(budget);
 
-                  if (context.mounted) {
-                    Navigator.pop(context);
-                    ScaffoldMessenger.of(context).showSnackBar(
+                  if (dialogContext.mounted) {
+                    Navigator.pop(dialogContext);
+                    ScaffoldMessenger.of(dialogContext).showSnackBar(
                       const SnackBar(
                         content: Text('✅ Đã tạo ngân sách thành công!'),
                         backgroundColor: Colors.green,
@@ -552,16 +607,16 @@ class _BudgetsScreenState extends State<BudgetsScreen> {
   void _showEditBudgetDialog(
       BuildContext context, Budget budget, BudgetProvider budgetProvider) {
     final limitController = TextEditingController(
-        text: CurrencyFormatter.format(budget.limit, currency: '\$')
-            .replaceAll('\$', ''));
+        text: CurrencyFormatter.format(budget.limit, currency: 'VND')
+            .replaceAll('VND', ''));
     String selectedPeriod = budget.period;
     String? selectedCategory = budget.categoryId;
     String selectedMonth = budget.month;
 
     showDialog(
       context: context,
-      builder: (context) => StatefulBuilder(
-        builder: (context, setState) => AlertDialog(
+      builder: (dialogContext) => StatefulBuilder(
+        builder: (dialogContext, setState) => AlertDialog(
           title: const Text('Chỉnh sửa ngân sách'),
           content: SingleChildScrollView(
             child: Column(
@@ -574,19 +629,27 @@ class _BudgetsScreenState extends State<BudgetsScreen> {
                     border: OutlineInputBorder(),
                   ),
                   items: const [
+                    DropdownMenuItem(value: 'daily', child: Text('Hàng ngày')),
+                    DropdownMenuItem(value: 'weekly', child: Text('Hàng tuần')),
                     DropdownMenuItem(
                         value: 'monthly', child: Text('Hàng tháng')),
-                    DropdownMenuItem(value: 'weekly', child: Text('Hàng tuần')),
+                    DropdownMenuItem(value: 'yearly', child: Text('Hàng năm')),
                   ],
-                  onChanged: (value) => setState(() => selectedPeriod = value!),
+                  onChanged: (value) {
+                    setState(() {
+                      selectedPeriod = value!;
+                      selectedMonth = _getPeriodIdentifier(selectedPeriod);
+                    });
+                  },
                 ),
                 const SizedBox(height: 16),
                 TextField(
                   controller: limitController,
                   keyboardType: TextInputType.numberWithOptions(decimal: true),
                   decoration: const InputDecoration(
-                    labelText: 'Giới hạn ngân sách',
+                    labelText: 'Giới hạn ngân sách (VND)',
                     border: OutlineInputBorder(),
+                    prefixText: 'VND ',
                   ),
                 ),
                 const SizedBox(height: 16),
@@ -622,7 +685,7 @@ class _BudgetsScreenState extends State<BudgetsScreen> {
           ),
           actions: [
             TextButton(
-              onPressed: () => Navigator.pop(context),
+              onPressed: () => Navigator.pop(dialogContext),
               child: const Text('Hủy'),
             ),
             ElevatedButton(
@@ -639,9 +702,9 @@ class _BudgetsScreenState extends State<BudgetsScreen> {
 
                   await budgetProvider.updateBudget(updatedBudget);
 
-                  if (context.mounted) {
-                    Navigator.pop(context);
-                    ScaffoldMessenger.of(context).showSnackBar(
+                  if (dialogContext.mounted) {
+                    Navigator.pop(dialogContext);
+                    ScaffoldMessenger.of(dialogContext).showSnackBar(
                       const SnackBar(
                         content: Text('✅ Đã cập nhật ngân sách thành công!'),
                         backgroundColor: Colors.green,
@@ -662,21 +725,21 @@ class _BudgetsScreenState extends State<BudgetsScreen> {
       BuildContext context, Budget budget, BudgetProvider budgetProvider) {
     showDialog(
       context: context,
-      builder: (context) => AlertDialog(
+      builder: (dialogContext) => AlertDialog(
         title: const Text('Xóa ngân sách'),
         content: Text('Bạn có chắc chắn muốn xóa ngân sách này?'),
         actions: [
           TextButton(
-            onPressed: () => Navigator.pop(context),
+            onPressed: () => Navigator.pop(dialogContext),
             child: const Text('Hủy'),
           ),
           ElevatedButton(
             onPressed: () async {
               await budgetProvider.deleteBudget(budget.id);
 
-              if (context.mounted) {
-                Navigator.pop(context);
-                ScaffoldMessenger.of(context).showSnackBar(
+              if (dialogContext.mounted) {
+                Navigator.pop(dialogContext);
+                ScaffoldMessenger.of(dialogContext).showSnackBar(
                   const SnackBar(
                     content: Text('✅ Đã xóa ngân sách thành công!'),
                     backgroundColor: Colors.green,
@@ -693,5 +756,77 @@ class _BudgetsScreenState extends State<BudgetsScreen> {
         ],
       ),
     );
+  }
+
+  // Bộ lọc danh mục
+  Widget _buildCategoryFilter() {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+      decoration: BoxDecoration(
+        border: Border.all(color: Colors.grey.shade300),
+        borderRadius: BorderRadius.circular(8),
+      ),
+      child: DropdownButtonHideUnderline(
+        child: DropdownButton<String?>(
+          value: _selectedCategoryFilter,
+          hint: const Text('Tất cả'),
+          isDense: true,
+          items: [
+            const DropdownMenuItem<String?>(
+              value: null,
+              child: Text('Toàn bộ'),
+            ),
+            const DropdownMenuItem<String?>(
+              value: 'food',
+              child: Text('Ăn uống'),
+            ),
+            const DropdownMenuItem<String?>(
+              value: 'transport',
+              child: Text('Giao thông'),
+            ),
+            const DropdownMenuItem<String?>(
+              value: 'entertainment',
+              child: Text('Giải trí'),
+            ),
+            const DropdownMenuItem<String?>(
+              value: 'shopping',
+              child: Text('Mua sắm'),
+            ),
+            const DropdownMenuItem<String?>(
+              value: 'health',
+              child: Text('Sức khỏe'),
+            ),
+            const DropdownMenuItem<String?>(
+              value: 'education',
+              child: Text('Giáo dục'),
+            ),
+            const DropdownMenuItem<String?>(
+              value: 'utilities',
+              child: Text('Tiện ích'),
+            ),
+            const DropdownMenuItem<String?>(
+              value: 'other',
+              child: Text('Khác'),
+            ),
+          ],
+          onChanged: (value) {
+            setState(() {
+              _selectedCategoryFilter = value;
+            });
+          },
+        ),
+      ),
+    );
+  }
+
+  // Lọc ngân sách theo danh mục
+  List<Budget> _getFilteredBudgets(List<Budget> budgets) {
+    if (_selectedCategoryFilter == null) {
+      // Hiển thị ngân sách "Toàn bộ" (categoryId = null)
+      return budgets.where((budget) => budget.categoryId == null).toList();
+    }
+    return budgets
+        .where((budget) => budget.categoryId == _selectedCategoryFilter)
+        .toList();
   }
 }
